@@ -5,7 +5,9 @@
  * The emails and the text are the brief's appendix, "written in Leah's voice.
  * Edit freely, especially the personal story line." A step whose copy she has
  * not written yet carries a placeholder and `enabled: false`: it is planned
- * and shown on the Journey page as waiting on copy, and never sent.
+ * and shown on the Journey page as waiting on copy, and never sent. A step
+ * marked `draft: true` has words drafted in her voice and waits for her OK:
+ * an admin turns it on from the Journey page (`cc_settings.journey_approved`).
  *
  * The Practice's OS rules hold here too: the situation is neutral, nothing
  * shames, no "you haven't". See AGENTS.md.
@@ -52,14 +54,21 @@ export const STEPS = [
   { id: "welcome", on: "join", after: 0, channels: ["email", "sms"], enabled: true, label: "Welcome to the movement" },
   { id: "day1_rep", on: "join", after: 1, channels: ["push"], enabled: true, label: "Try today's Rep of the Day" },
   { id: "day2_merch", on: "join", after: 2, channels: ["email"], enabled: true, label: "The merch" },
-  { id: "day4_lab", on: "join", after: 4, channels: ["email"], enabled: false, label: "Invite to the Lab and the Masterclass" },
-  { id: "day6_trial", on: "join", after: 6, channels: ["email", "sms"], enabled: false, label: "What stays with you as a full member" },
+  { id: "day4_lab", on: "join", after: 4, channels: ["email"], enabled: false, draft: true, label: "Invite to the Lab and the Masterclass" },
+  { id: "day6_trial", on: "join", after: 6, channels: ["email", "sms"], enabled: false, draft: true, label: "What stays with you as a full member" },
   { id: "upgrade", on: "upgrade", after: 0, channels: ["email"], enabled: true, label: "You are officially in" },
   { id: "merch_order", on: "merch", after: 0, channels: ["email"], enabled: true, label: "Thank you for your order" },
-  { id: "quiet_10", on: "quiet", after: 0, channels: ["email"], enabled: false, label: "We miss you" }
+  { id: "quiet_10", on: "quiet", after: 0, channels: ["email"], enabled: false, draft: true, label: "We miss you" }
 ];
 
 export const stepById = (id) => STEPS.find((step) => step.id === id) || null;
+
+/** Whether a step sends: Leah's own copy always; a draft once an admin has turned it on. */
+export function stepIsOn(step, settings = {}) {
+  if (!step) return false;
+  if (step.enabled) return true;
+  return Boolean(step.draft && Array.isArray(settings?.journey_approved) && settings.journey_approved.includes(step.id));
+}
 
 /** The steps one event plans, with when each is due. */
 export function planFor(on, at = new Date()) {
@@ -121,25 +130,33 @@ export function messageFor(id, { first, base, sender = "Leah", referralLink = ""
         signoff: signoff
       };
     case "day4_lab":
-      // Placeholder: waiting on Leah's copy. Never sent while the step is disabled.
+      // Drafted in Leah's voice; sent only once she has turned it on.
       return {
-        subject: "This month in the Lab",
+        subject: "Come into the Lab",
         title: `Hi ${name},`,
-        paragraphs: ["[Leah's invitation to the Lab, the Coaching Lab, and this month's Masterclass.]"],
+        paragraphs: [
+          "You are a few days into The Practice, and I want to make sure you have found the Lab.",
+          "The Lab is where we go deeper together. The Coaching Lab lives there, and each month we gather for the Masterclass.",
+          "Come as you are. Bring a question, or just listen. Either way, you belong in the room."
+        ],
         button: "Open the Lab",
         url: `${root}${PATHS.lab}`,
-        signoff: signoff
+        signoff: `See you there,\n${signoff}`
       };
     case "day6_trial":
-      // Placeholder: waiting on Leah's copy. Never sent while the step is disabled.
+      // Drafted in Leah's voice; sent only once she has turned it on.
       return {
         subject: "What stays with you",
         title: `Hi ${name},`,
-        paragraphs: ["[Leah's note on what stays with you as a full member, and a gentle invite to keep going.]"],
+        paragraphs: [
+          "Your trial wraps up tomorrow, and I wanted to say thank you for practicing with us this week.",
+          "As a full member, everything stays with you: the Rep of the Day every morning, the Practice Coach whenever you need it, the Lab, the Masterclass, and this community.",
+          "Feeling better is not a one-week thing. It is a practice. I would love for you to keep going with us."
+        ],
         button: "Keep going",
         url: `${root}${PATHS.membership}`,
-        signoff: signoff,
-        sms: `Hi ${name}, it's Leah. Your trial ends tomorrow. [One line on what stays with you as a full member.] ${root}${PATHS.membership}`
+        signoff: `With love,\n${signoff}`,
+        sms: `Hi ${name}, it's Leah. Your trial ends tomorrow. As a full member, the Rep of the Day, the Coach and the Lab all stay with you. I would love for you to keep going: ${root}${PATHS.membership}. Reply STOP to opt out.`
       };
     case "upgrade":
       return {
@@ -168,14 +185,18 @@ export function messageFor(id, { first, base, sender = "Leah", referralLink = ""
         signoff: signoff
       };
     case "quiet_10":
-      // Placeholder: waiting on Leah's copy. Never sent while the step is disabled.
+      // Drafted in Leah's voice; sent only once she has turned it on.
       return {
         subject: "One rep",
         title: `Hi ${name},`,
-        paragraphs: ["[Leah's note: we miss you, plus one simple rep to come back to.]"],
+        paragraphs: [
+          "I have been thinking about you and wanted to check in.",
+          "Life gets full. That is normal, and nothing is lost. The Practice is right here whenever you are ready.",
+          "One simple way back in: open today's Rep of the Day. It takes a few minutes, and it counts."
+        ],
         button: "Open today's rep",
         url: `${root}${PATHS.today}`,
-        signoff: signoff
+        signoff: `Thinking of you,\n${signoff}`
       };
     default:
       return null;

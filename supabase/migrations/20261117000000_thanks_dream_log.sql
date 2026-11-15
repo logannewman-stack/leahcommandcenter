@@ -96,6 +96,8 @@ alter table public.cc_settings add column if not exists mission text not null de
 alter table public.cc_settings add column if not exists pool_per_upgrade_cents integer not null default 0 check (pool_per_upgrade_cents >= 0);
 alter table public.cc_settings add column if not exists pool_goal_upgrades integer not null default 0 check (pool_goal_upgrades >= 0);
 alter table public.cc_settings add column if not exists pool_reward text not null default '';
+-- The Welcome Journey emails drafted in Leah's voice that she has read and turned on.
+alter table public.cc_settings add column if not exists journey_approved text[] not null default '{}';
 
 -- ── Realtime: thank yous, the morning message and the log land for everyone ─
 

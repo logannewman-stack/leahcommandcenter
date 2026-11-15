@@ -47,10 +47,12 @@ test("a step without Leah's copy is skipped and says why; the whole journey can 
   let mails = 0;
   const email = async () => (mails += 1, { sent: true, skipped: false, error: "" });
   const waiting = await sendStep(db(), row({ step: "day6_trial" }), { settings, base, deps: { member: async () => sarah, email } });
-  assert.deepEqual(waiting, { status: "skipped", note: "waiting_on_copy" });
+  assert.deepEqual(waiting, { status: "skipped", note: "waiting_on_leah" });
+  const approved = await sendStep(db(), row({ step: "day6_trial" }), { settings: { ...settings, journey_approved: ["day6_trial"] }, base, deps: { member: async () => ({ ...sarah, status: "trialing" }), email } });
+  assert.equal(approved.status, "sent");
   const off = await sendStep(db(), row(), { settings: { ...settings, journey_enabled: false }, base, deps: { member: async () => sarah, email } });
   assert.deepEqual(off, { status: "skipped", note: "journey_off" });
-  assert.equal(mails, 0);
+  assert.equal(mails, 1, "only the approved one went out");
 });
 
 test("a later step to somebody who gave the trial up, or has no account, is nothing", async () => {

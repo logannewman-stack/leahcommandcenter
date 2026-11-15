@@ -18,7 +18,7 @@ import { useSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { useTasks } from "@/lib/tasksStore";
 import { PERIODS, PERIOD_COPY, intervals, isToday, series, startOfDay } from "@/lib/trends";
-import { STEPS, whoOf } from "@/lib/words";
+import { STEPS, stepIsOn, whoOf } from "@/lib/words";
 
 /*
  * The Dashboard answers "what needs me" first, as the Detail on Demand
@@ -42,7 +42,7 @@ function missingFrom(health) {
 
 export default function Dashboard() {
   const { counts, subscribe } = useLive();
-  const { me } = useSession();
+  const { me, settings } = useSession();
   const { lead, overdue } = useTasks();
   const wide = useWide();
   useTick(30_000);
@@ -113,14 +113,14 @@ export default function Dashboard() {
 
   const now = new Date();
   const s = score || {};
-  const waitingCopy = STEPS.filter((step) => !step.enabled).length;
+  const waitingCopy = STEPS.filter((step) => !stepIsOn(step, settings || {})).length;
 
   const needs = [
     { key: "overdue", count: lead ? overdue : 0, icon: ListChecks, tone: "amber", to: "/todos", title: "To-dos past their day", sub: "Across the team · a nudge can help" },
     { key: "cancels", count: counts.cancels, icon: HeartHandshake, tone: "rust", to: "/pulse?view=needs", title: "Cancellations to reach out to", sub: "A personal note from someone on the team" },
     { key: "trials", count: counts.trialsEnding, icon: Clock, tone: "amber", to: "/pulse?view=needs", title: "Trials ending in 48 hours", sub: "A good moment for someone to reach out" },
     { key: "failed", count: counts.journeyFailed, icon: MailWarning, tone: "rust", to: "/journey?status=failed", title: "Welcome messages that didn't send", sub: "Last 14 days · the reason is on the Journey" },
-    { key: "copy", count: waitingCopy, icon: PenLine, tone: "plum", to: "/journey", title: "Journey steps waiting on Leah's copy", sub: "Planned, and never sent until the words are in" },
+    { key: "copy", count: waitingCopy, icon: PenLine, tone: "plum", to: "/journey", title: "Welcome emails waiting on Leah's OK", sub: "Drafted in her voice · she reads them and switches them on" },
     { key: "setup", count: missingFrom(health), icon: Plug, tone: "navy", to: "/setup", title: "Connections not set up yet", sub: "Stripe, email, Discord and the hourly job" }
   ].filter((row) => row.count > 0);
 

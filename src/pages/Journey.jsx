@@ -7,7 +7,7 @@ import { dateTime } from "@/lib/format";
 import { updatedLabel, useTick } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
-import { STEPS } from "@/lib/words";
+import { STEPS, stepIsOn } from "@/lib/words";
 
 const WHEN = (step) => {
   if (step.on === "upgrade") return "On upgrade";
@@ -32,6 +32,7 @@ const FILTERS = [
 ];
 const NOTES = {
   waiting_on_copy: "waiting on Leah's copy",
+  waiting_on_leah: "waiting on Leah's OK",
   texting_off: "texting is off",
   no_opt_in: "no text opt-in",
   no_longer_member: "no longer a member",
@@ -110,6 +111,12 @@ export default function Journey() {
     else refreshSession();
   };
 
+  // A draft in Leah's voice, turned on (or off) once she has read it.
+  const approve = (id, on) => {
+    const now = Array.isArray(settings?.journey_approved) ? settings.journey_approved : [];
+    return setSetting({ journey_approved: on ? [...new Set([...now, id])] : now.filter((x) => x !== id) });
+  };
+
   const subtitle = [weekSent == null ? "" : `${weekSent} sent this week`, updatedLabel(at)].filter(Boolean).join(" · ");
   const admin = Boolean(me?.is_admin);
 
@@ -122,22 +129,31 @@ export default function Journey() {
       ) : null}
 
       <div className="cc-grid-2">
-        <Card title="The series" caption={`${STEPS.filter((s) => s.enabled).length} of ${STEPS.length} ready`}>
+        <Card title="The series" caption={`${STEPS.filter((s) => stepIsOn(s, settings || {})).length} of ${STEPS.length} on`}>
           <div className="cc-rows">
             {STEPS.map((step) => {
               const Icon = CHANNEL_ICON[step.channels[0]] || Mail;
+              const on = stepIsOn(step, settings || {});
               return (
                 <div key={step.id} className="cc-row">
-                  <IconTile icon={Icon} tone={step.enabled ? "navy" : "plum"} />
+                  <IconTile icon={Icon} tone={on ? "navy" : "plum"} />
                   <div className="cc-row-main">
                     <p className="t-sub t-strong cc-label" style={{ lineHeight: 1.3 }}>
                       {step.label}
                     </p>
                     <p className="t-cap1 cc-tertiary">
                       {WHEN(step)} · {step.channels.map((c) => CHANNEL[c]).join(" + ")}
+                      {step.draft ? (on ? " · Leah's OK'd" : " · Draft, waiting on Leah's OK") : ""}
                     </p>
                   </div>
-                  {step.enabled ? (
+                  {step.draft ? (
+                    <span className="flex items-center" style={{ gap: 8 }}>
+                      <button type="button" className="cc-btn cc-btn-quiet cc-btn-sm" onClick={() => test(step.id)} disabled={busy === step.id} title="Sends this email to your own inbox to read">
+                        <Send size={13} aria-hidden="true" /> Test
+                      </button>
+                      <Switch checked={on} disabled={!admin} onChange={(next) => approve(step.id, next)} label={`Send "${step.label}"`} />
+                    </span>
+                  ) : step.enabled ? (
                     step.channels.includes("email") ? (
                       <button type="button" className="cc-btn cc-btn-quiet cc-btn-sm" onClick={() => test(step.id)} disabled={busy === step.id} title="Sends this email to your own inbox">
                         <Send size={13} aria-hidden="true" /> Test
@@ -158,7 +174,7 @@ export default function Journey() {
             </p>
           ) : null}
           <p className="t-cap1 cc-tertiary" style={{ padding: "8px 0 4px" }}>
-            The words live in one file, api/_lib/words.js. A step without Leah's approved copy is planned and never sent.
+            The words live in one file, api/_lib/words.js. A draft goes out only once it's switched on here: tap Test to read it in your inbox first.
           </p>
         </Card>
 

@@ -1,7 +1,7 @@
 import { memberById } from "./members.js";
 import { emailBody, sendEmail, sendSms } from "./notify.js";
 import { sendPush } from "./push.js";
-import { EMAIL_FOOTER, messageFor, planFor, stepById } from "./words.js";
+import { EMAIL_FOOTER, messageFor, planFor, stepById, stepIsOn } from "./words.js";
 
 /**
  * The Welcome Journey: planned the moment somebody joins (or upgrades, or
@@ -57,7 +57,7 @@ export async function sendStep(db, row, { settings, base, deps = {} }) {
   const step = stepById(row.step);
   if (!step) return { status: "skipped", note: "unknown_step" };
   if (!settings.journey_enabled) return { status: "skipped", note: "journey_off" };
-  if (!step.enabled) return { status: "skipped", note: "waiting_on_copy" };
+  if (!stepIsOn(step, settings)) return { status: "skipped", note: step.draft ? "waiting_on_leah" : "waiting_on_copy" };
 
   const member = await lookup(db, row.user_id);
   if (!member) return { status: "skipped", note: "no_account" };

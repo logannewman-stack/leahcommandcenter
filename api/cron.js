@@ -3,7 +3,7 @@ import { memberById, quietMembers, trialsEndingWithin } from "./_lib/members.js"
 import { recordPulse } from "./_lib/pulse.js";
 import { planJourney, sendDue } from "./_lib/journey.js";
 import { snapshot } from "./_lib/scoreboard.js";
-import { discordLine, stepById } from "./_lib/words.js";
+import { discordLine, stepById, stepIsOn } from "./_lib/words.js";
 import { postWins } from "./_lib/discord.js";
 import { milestonesFor } from "./_lib/milestones.js";
 
@@ -14,7 +14,7 @@ import { milestonesFor } from "./_lib/milestones.js";
  *
  *   1. Trials ending within 48 hours: a quiet card on the board, once per trial.
  *   2. Members quiet for 10 days: the "we miss you" step, once a month each,
- *      only once Leah's copy is in (`quiet_10` enabled in words.js).
+ *      only once Leah has turned that email on (Journey page).
  *   3. The Welcome Journey's due steps, sent.
  *   4. The scoreboard's snapshot from Stripe.
  *   5. Milestones: 500 members, 100 paying, the first $10K month. Each one
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     notes.trial_ending = `error: ${error?.message}`;
   }
 
-  if (stepById("quiet_10")?.enabled) {
+  if (stepIsOn(stepById("quiet_10"), await settingsOf(admin))) {
     try {
       const quiet = await quietMembers(admin, 10, now);
       const ref = now.toISOString().slice(0, 7);
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
       notes.quiet = `error: ${error?.message}`;
     }
   } else {
-    notes.quiet = "waiting_on_copy";
+    notes.quiet = "waiting_on_leah";
   }
 
   try {

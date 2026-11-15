@@ -62,7 +62,8 @@ test("every step has a message; the ones Leah wrote are on, the placeholders are
     assert.ok(message.subject && message.title && message.button && message.url.startsWith("https://www.practiceinnerboard.com/"), step.id);
     if (step.channels.includes("sms")) assert.ok(message.sms, `${step.id} has a text`);
     if (step.channels.includes("push")) assert.ok(message.push, `${step.id} has a push`);
-    if (!step.enabled) assert.match([message.title, ...message.paragraphs].join(" "), /\[/, `${step.id} is marked as a placeholder`);
+    if (!step.enabled && !step.draft) assert.match([message.title, ...message.paragraphs].join(" "), /\[/, `${step.id} is marked as a placeholder`);
+    if (step.draft) assert.doesNotMatch([message.title, ...message.paragraphs, message.sms || ""].join(" "), /\[/, `${step.id} is a full draft`);
   }
   assert.equal(messageFor("nope", { first: "x", base: "" }), null);
 });
@@ -89,7 +90,7 @@ test("Leah's words, as the appendix has them, and the sender she chose", () => {
 });
 
 test("nothing a member reads carries a banned word or a scold", () => {
-  for (const step of STEPS.filter((s) => s.enabled)) {
+  for (const step of STEPS.filter((s) => s.enabled || s.draft)) {
     const message = messageFor(step.id, { first: "Sarah", base: "https://x.y", items: ["Cap"] });
     const all = [message.subject, message.title, ...message.paragraphs, message.signoff, message.sms || "", message.push?.body || ""].join(" ").toLowerCase();
     for (const word of BANNED_WORDS) assert.equal(all.includes(word), false, `${step.id} says "${word}"`);
@@ -102,4 +103,13 @@ test("an email is the title, the paragraphs, one button, the sign-off and the fo
   assert.match(html, /Two &amp; three\./);
   assert.match(html, /href="https:\/\/x\.y\/today"/);
   assert.match(html, /white-space:pre-line">With love,\nLeah</);
+});
+
+test("a draft sends only once an admin turns it on", async () => {
+  const { stepIsOn, stepById } = await import("../src/lib/words.js");
+  assert.equal(stepIsOn(stepById("welcome"), {}), true);
+  assert.equal(stepIsOn(stepById("day6_trial"), {}), false);
+  assert.equal(stepIsOn(stepById("day6_trial"), { journey_approved: ["day4_lab"] }), false);
+  assert.equal(stepIsOn(stepById("day6_trial"), { journey_approved: ["day6_trial"] }), true);
+  assert.equal(stepIsOn(null, { journey_approved: ["day6_trial"] }), false);
 });
