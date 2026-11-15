@@ -178,7 +178,7 @@ export default async function handler(req, res) {
       title: `${first}, you're on the team`,
       paragraphs: [
         `${from} added you to The Practice Command Center: your to-dos for the day, the live pulse of the community, and the team's wins in one place.`,
-        "The button signs you in. It works once and for the next hour. After that, sign in at the same address with Google or your Practice email."
+        "The button signs you in. It works once and for the next hour. After that, sign in at the same address with your Practice email and password, or tap \"Email me a sign-in link\" there."
       ],
       url,
       button: "Open the Command Center",
