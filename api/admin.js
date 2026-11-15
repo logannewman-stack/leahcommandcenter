@@ -6,6 +6,7 @@ import { stripeConfig } from "./_lib/stripe.js";
 import { WEBHOOK_EVENTS } from "./_lib/pulse.js";
 import { EMAIL_FOOTER, STEPS, discordLine, firstNameOf, listClearedLine, messageFor } from "./_lib/words.js";
 import { momentsAhead } from "./_lib/moments.js";
+import { catchUpSales } from "./_lib/catchup.js";
 
 /**
  * What the team asks the server for. Every address needs a signed-in person
@@ -18,6 +19,7 @@ import { momentsAhead } from "./_lib/moments.js";
  *   POST /api/admin/checkoff { id }   a to-do the caller just finished, in #wins, once
  *   GET  /api/admin/moments           members' 30 day, 90 day and one year marks this week
  *   POST /api/admin/invite { email }  a teammate's one-time sign-in link, by email (admin)
+ *   POST /api/admin/catchup           merch orders and gifts Stripe never told the board about
  *
  * One function rather than four: the Hobby plan deploys at most twelve.
  */
@@ -187,6 +189,16 @@ export default async function handler(req, res) {
     });
     const sent = await sendEmail({ to: email, subject: `${from} added you to the Command Center`, text, html, fromName: "The Practice Command Center", replyTo: me.email, once: `invite:${email}:${Math.floor(Date.now() / 60000)}` });
     return res.status(sent.sent ? 200 : 502).json({ sent: sent.sent, to: email, error: sent.sent ? undefined : sent.error || sent.skipped });
+  }
+
+  // Merch orders and gifts Stripe never told the board about, read back from Stripe (api/_lib/catchup.js).
+  if (op === "catchup" && req.method === "POST") {
+    try {
+      return res.status(200).json(await catchUpSales(admin));
+    } catch (error) {
+      console.error("admin catchup:", error?.status, error?.message);
+      return res.status(502).json({ error: "upstream" });
+    }
   }
 
   if (op === "moments" && req.method === "GET") {

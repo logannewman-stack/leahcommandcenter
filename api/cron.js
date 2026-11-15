@@ -6,6 +6,7 @@ import { snapshot } from "./_lib/scoreboard.js";
 import { discordLine, stepById, stepIsOn } from "./_lib/words.js";
 import { postWins } from "./_lib/discord.js";
 import { milestonesFor } from "./_lib/milestones.js";
+import { HOURLY_WINDOW_MS, catchUpSales } from "./_lib/catchup.js";
 
 /**
  * The hourly job (`vercel.json`, `0 * * * *`). Vercel calls it with
@@ -16,7 +17,8 @@ import { milestonesFor } from "./_lib/milestones.js";
  *   2. Members quiet for 10 days: the "we miss you" step, once a month each,
  *      only once Leah has turned that email on (Journey page).
  *   3. The Welcome Journey's due steps, sent.
- *   4. The scoreboard's snapshot from Stripe.
+ *   4. The scoreboard's snapshot from Stripe, and any merch order or gift
+ *      from the last few days Stripe never told the board about.
  *   5. Milestones: 500 members, 100 paying, the first $10K month. Each one
  *      is a pulse card once (the whole screen celebrates it) and a line in
  *      #wins.
@@ -86,6 +88,12 @@ export default async function handler(req, res) {
     notes.stats = await snapshot(admin);
   } catch (error) {
     notes.stats = `error: ${error?.message}`;
+  }
+
+  try {
+    notes.sales = await catchUpSales(admin, { since: Date.now() - HOURLY_WINDOW_MS, now });
+  } catch (error) {
+    notes.sales = `error: ${error?.message}`;
   }
 
   try {

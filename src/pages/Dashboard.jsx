@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [events, setEvents] = useState([]);
   const [sends, setSends] = useState([]);
   const [health, setHealth] = useState(null);
+  const [salesCheck, setSalesCheck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState("");
   const [at, setAt] = useState(0);
@@ -101,6 +102,18 @@ export default function Dashboard() {
       .then(setHealth)
       .catch(() => setHealth(null));
   }, [me?.is_admin]);
+
+  // Merch orders and gifts Stripe never told the board about: read back from
+  // Stripe when an admin opens the dashboard, and the numbers re-read if any came in.
+  useEffect(() => {
+    if (!me?.is_admin) return;
+    callAdmin("catchup", { method: "POST" })
+      .then((result) => {
+        setSalesCheck(result);
+        if (result?.added > 0) load();
+      })
+      .catch(() => {});
+  }, [me?.is_admin, load]);
 
   const refresh = async () => {
     setSpinning(true);
@@ -199,6 +212,12 @@ export default function Dashboard() {
               <YourTodosCard />
             </div>
           </div>
+
+          {salesCheck?.skipped === "no_stripe" ? (
+            <Notice icon={ShoppingBag} title="Merch numbers need the Stripe key">
+              The Command Center reads merch orders from Stripe, and the live site doesn't have the Practice's Stripe secret key yet, so merch shows $0. Once STRIPE_SECRET_KEY is saved in Vercel, every order this month fills in by itself.
+            </Notice>
+          ) : null}
 
           {problem ? (
             <Notice icon={Plug} title="Some numbers can't be read yet">

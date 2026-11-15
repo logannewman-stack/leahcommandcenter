@@ -56,7 +56,9 @@ export function LiveProvider({ children }) {
         const row = payload.new;
         if (!row) return;
         listeners.current.forEach((listen) => listen("insert", row));
-        if (!row.quiet) {
+        // Only news is celebrated: an order caught up from Stripe after the fact is history.
+        const fresh = !row.occurred_at || Date.now() - Date.parse(row.occurred_at) < 15 * 60 * 1000;
+        if (!row.quiet && fresh && row.source !== "stripe-catchup") {
           setBurst({ id: row.id, bigger: Boolean(row.big) });
           chime(Boolean(row.big));
         }
