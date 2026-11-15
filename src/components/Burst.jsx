@@ -22,10 +22,16 @@ const randomFrom = (start) => {
  * way here. Decoration, so it is hidden from assistive tech and cannot be
  * tapped; it respects reduced motion by not drawing at all.
  *
+ * Only a new burst restarts it: `onDone` is read from a ref, so a parent
+ * re-rendering mid-flight never replays the pieces.
+ *
  * @param {{ burst: { id: string, bigger?: boolean } | null, onDone?: () => void }} props
  */
 export default function Burst({ burst, onDone }) {
   const canvasRef = useRef(null);
+  const done = useRef(onDone);
+  done.current = onDone;
+
   useEffect(() => {
     if (!burst) return undefined;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -33,7 +39,7 @@ export default function Burst({ burst, onDone }) {
     const canvas = canvasRef.current;
     const context = canvas?.getContext?.("2d");
     if (reduced || !canvas || !context) {
-      const soon = setTimeout(() => onDone?.(), 10);
+      const soon = setTimeout(() => done.current?.(), 10);
       return () => clearTimeout(soon);
     }
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -64,12 +70,13 @@ export default function Burst({ burst, onDone }) {
       frame = showing ? requestAnimationFrame(tick) : 0;
     };
     frame = requestAnimationFrame(tick);
-    const over = setTimeout(() => onDone?.(), burstLength(Boolean(burst.bigger), season) + 300);
+    const over = setTimeout(() => done.current?.(), burstLength(Boolean(burst.bigger), season) + 300);
     return () => {
       cancelAnimationFrame(frame);
       clearTimeout(over);
     };
-  }, [burst, onDone]);
+  }, [burst]);
+
   if (!burst) return null;
   return <canvas ref={canvasRef} className="fixed inset-0 z-[60] w-full h-full pointer-events-none" aria-hidden="true" />;
 }

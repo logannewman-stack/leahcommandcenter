@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { Send } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Bell, Mail, MessageSquare, PauseCircle, Send, Smartphone } from "lucide-react";
+import { Badge, Card, Chip, EmptyLine, IconTile, Monogram, Notice, Page, RefreshButton, Switch } from "@/components/ui";
 import { callAdmin } from "@/lib/api";
 import { dateTime } from "@/lib/format";
+import { updatedLabel, useTick } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { STEPS } from "@/lib/words";
@@ -13,25 +16,80 @@ const WHEN = (step) => {
   return step.after === 0 ? "Right after sign up" : `Day ${step.after}`;
 };
 const CHANNEL = { email: "Email", sms: "Text", push: "In app" };
-const STATUS = { due: "Due", sent: "Sent", skipped: "Skipped", failed: "Failed" };
+const CHANNEL_ICON = { email: Mail, sms: MessageSquare, push: Smartphone };
+const STATUS = {
+  sent: { label: "Sent", tone: "green" },
+  due: { label: "Due", tone: "amber" },
+  skipped: { label: "Skipped", tone: "ink" },
+  failed: { label: "Didn't send", tone: "rust" }
+};
+const FILTERS = [
+  { id: "all", label: "All" },
+  { id: "sent", label: "Sent" },
+  { id: "due", label: "Due" },
+  { id: "skipped", label: "Skipped" },
+  { id: "failed", label: "Didn't send" }
+];
+const NOTES = {
+  waiting_on_copy: "waiting on Leah's copy",
+  texting_off: "texting is off",
+  no_opt_in: "no text opt-in",
+  no_longer_member: "no longer a member",
+  already_a_member: "already a member",
+  journey_off: "the journey was off",
+  no_address: "no email address",
+  no_email_provider: "email isn't set up",
+  no_sms_provider: "text isn't set up",
+  no_devices: "no phone with notifications on",
+  no_push_keys: "no push keys",
+  no_account: "no account"
+};
+const noteOf = (note) => (note ? NOTES[note] || note.replace(/_/g, " ") : "");
 
 /**
- * The Welcome Journey: the series as it stands, what has gone out, the
- * switches, and a way to see each email in your own inbox first.
+ * The Welcome Journey: the series as it stands, the switches, and every
+ * message planned or sent, with why one was skipped.
  */
 export default function Journey() {
-  const { me, settings, refresh } = useSession();
+  const { me, settings, refresh: refreshSession } = useSession();
+  const [params, setParams] = useSearchParams();
+  const status = FILTERS.some((f) => f.id === params.get("status")) ? params.get("status") : "all";
+  useTick(30_000);
   const [rows, setRows] = useState([]);
+  const [at, setAt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [spinning, setSpinning] = useState(false);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
+  const [weekSent, setWeekSent] = useState(null);
 
-  const load = async () => {
-    const { data } = await supabase.from("cc_journey").select("*").order("due_at", { ascending: false }).limit(60);
+  const load = useCallback(async () => {
+    let query = supabase.from("cc_journey").select("*").order("due_at", { ascending: false }).limit(80);
+    if (status !== "all") query = query.eq("status", status);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data }, week] = await Promise.all([query, supabase.from("cc_journey").select("id", { count: "exact", head: true }).eq("status", "sent").gte("sent_at", weekAgo)]);
     setRows(data || []);
-  };
+    setWeekSent(week.error ? null : Number(week.count) || 0);
+    setAt(Date.now());
+    setLoading(false);
+  }, [status]);
+
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  const choose = (id) => {
+    const next = new URLSearchParams(params);
+    if (id === "all") next.delete("status");
+    else next.set("status", id);
+    setParams(next, { replace: true });
+  };
+
+  const refresh = async () => {
+    setSpinning(true);
+    await load();
+    setTimeout(() => setSpinning(false), 500);
+  };
 
   const test = async (step) => {
     setBusy(step);
@@ -40,117 +98,156 @@ export default function Journey() {
       const result = await callAdmin("test", { method: "POST", body: { step } });
       setNote(result.sent ? `Sent "${result.preview.subject}" to ${result.to}.` : `Not sent: ${result.error}.`);
     } catch (error) {
-      setNote(error.body?.error === "no_email_provider" ? "Email isn't set up yet (RESEND_API_KEY)." : `Not sent: ${error.body?.error || error.message}.`);
+      setNote(error.body?.error === "no_email_provider" ? "Email isn't set up yet (RESEND_API_KEY on the server)." : `Not sent: ${error.body?.error || error.message}.`);
     }
     setBusy("");
   };
 
   const setSetting = async (patch) => {
+    setNote("");
     const { error } = await supabase.from("cc_settings").update(patch).eq("id", true);
     if (error) setNote(error.message);
-    else refresh();
+    else refreshSession();
   };
 
+  const subtitle = [weekSent == null ? "" : `${weekSent} sent this week`, updatedLabel(at)].filter(Boolean).join(" · ");
+  const admin = Boolean(me?.is_admin);
+
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <h2 className="font-display text-xl">The series</h2>
-        <div className="card divide-y divide-line">
-          {STEPS.map((step) => (
-            <div key={step.id} className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="w-40 shrink-0 text-xs text-ink-faint">{WHEN(step)}</span>
-              <span className="w-24 shrink-0 text-xs text-ink-faint">{step.channels.map((c) => CHANNEL[c]).join(" + ")}</span>
-              <span className="flex-1 min-w-[12rem] text-[15px]">{step.label}</span>
-              {step.enabled ? (
-                step.channels.includes("email") ? (
-                  <button type="button" className="btn-quiet !py-1 !px-2.5 text-xs" onClick={() => test(step.id)} disabled={busy === step.id}>
-                    <Send size={13} /> Send me a test
-                  </button>
-                ) : (
-                  <span className="text-xs text-ink-faint">Sent in the app</span>
-                )
-              ) : (
-                <span className="text-xs rounded-full border border-line-strong px-2 py-0.5 text-ink-faint">Waiting on Leah's copy</span>
-              )}
+    <Page title="Welcome Journey" subtitle={subtitle || "Emails, texts and what went out"} right={<RefreshButton busy={spinning} onClick={refresh} />}>
+      {settings && !settings.journey_enabled ? (
+        <Notice icon={PauseCircle} tone="amber" title="The Welcome Journey is off">
+          Steps still get planned as members join, and each is skipped with that reason until it is turned back on below.
+        </Notice>
+      ) : null}
+
+      <div className="cc-grid-2">
+        <Card title="The series" caption={`${STEPS.filter((s) => s.enabled).length} of ${STEPS.length} ready`}>
+          <div className="cc-rows">
+            {STEPS.map((step) => {
+              const Icon = CHANNEL_ICON[step.channels[0]] || Mail;
+              return (
+                <div key={step.id} className="cc-row">
+                  <IconTile icon={Icon} tone={step.enabled ? "navy" : "plum"} />
+                  <div className="cc-row-main">
+                    <p className="t-sub t-strong cc-label" style={{ lineHeight: 1.3 }}>
+                      {step.label}
+                    </p>
+                    <p className="t-cap1 cc-tertiary">
+                      {WHEN(step)} · {step.channels.map((c) => CHANNEL[c]).join(" + ")}
+                    </p>
+                  </div>
+                  {step.enabled ? (
+                    step.channels.includes("email") ? (
+                      <button type="button" className="cc-btn cc-btn-quiet cc-btn-sm" onClick={() => test(step.id)} disabled={busy === step.id} title="Sends this email to your own inbox">
+                        <Send size={13} aria-hidden="true" /> Test
+                      </button>
+                    ) : (
+                      <Badge tone="green">On</Badge>
+                    )
+                  ) : (
+                    <Badge tone="plum">Waiting on copy</Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {note ? (
+            <p className="t-foot cc-secondary" style={{ padding: "8px 0 4px" }}>
+              {note}
+            </p>
+          ) : null}
+          <p className="t-cap1 cc-tertiary" style={{ padding: "8px 0 4px" }}>
+            The words live in one file, api/_lib/words.js. A step without Leah's approved copy is planned and never sent.
+          </p>
+        </Card>
+
+        <div className="cc-stack">
+          <Card title="Switches" caption={admin ? undefined : "Admins change these"}>
+            <div className="cc-rows">
+              <SwitchRow icon={Mail} tone="navy" title="Welcome Journey" sub="Send each step as it comes due" checked={settings?.journey_enabled} disabled={!admin} onChange={(on) => setSetting({ journey_enabled: on })} />
+              <SwitchRow icon={Bell} tone="gold" title="Post wins to Discord" sub="New members, upgrades, orders, gifts" checked={settings?.discord_wins_enabled} disabled={!admin} onChange={(on) => setSetting({ discord_wins_enabled: on })} />
+              <SwitchRow
+                icon={MessageSquare}
+                tone="green"
+                title="Texting"
+                sub="After the carrier registration and the sign-up opt-in"
+                checked={settings?.texting_enabled}
+                disabled={!admin}
+                onChange={(on) => setSetting({ texting_enabled: on })}
+              />
+              <div className="cc-row">
+                <IconTile icon={Send} tone="plum" />
+                <div className="cc-row-main">
+                  <p className="t-sub t-strong cc-label">Messages come from</p>
+                  <p className="t-cap1 cc-tertiary">The sender name and the sign-off</p>
+                </div>
+                <select className="cc-input" style={{ width: "auto", height: 36, fontSize: 14 }} value={settings?.sender || "Leah"} disabled={!admin} onChange={(e) => setSetting({ sender: e.target.value })} aria-label="Messages come from">
+                  <option value="Leah">Leah</option>
+                  <option value="The Practice">The Practice</option>
+                </select>
+              </div>
             </div>
-          ))}
+          </Card>
         </div>
-        {note ? <p className="text-sm text-ink-muted">{note}</p> : null}
-        <p className="text-xs text-ink-faint">
-          Copy lives in one file, api/_lib/words.js. A step without Leah's approved words is planned but never sent.
-        </p>
-      </section>
+      </div>
 
-      <section className="space-y-3">
-        <h2 className="font-display text-xl">Switches</h2>
-        <div className="card p-4 grid gap-3 sm:grid-cols-2">
-          <Switch label="Welcome Journey on" on={settings?.journey_enabled} admin={me?.is_admin} onChange={(on) => setSetting({ journey_enabled: on })} />
-          <Switch label="Post wins to Discord" on={settings?.discord_wins_enabled} admin={me?.is_admin} onChange={(on) => setSetting({ discord_wins_enabled: on })} />
-          <Switch
-            label="Texting on (after carrier registration)"
-            on={settings?.texting_enabled}
-            admin={me?.is_admin}
-            onChange={(on) => setSetting({ texting_enabled: on })}
-          />
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span>Messages come from</span>
-            <select
-              className="field !w-auto"
-              value={settings?.sender || "Leah"}
-              disabled={!me?.is_admin}
-              onChange={(e) => setSetting({ sender: e.target.value })}
-            >
-              <option value="Leah">Leah personally</option>
-              <option value="The Practice">The Practice</option>
-            </select>
-          </label>
-        </div>
-        {!me?.is_admin ? <p className="text-xs text-ink-faint">Admins change the switches.</p> : null}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="font-display text-xl">Recent sends</h2>
-        {rows.length ? (
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-ink-faint">
-                  <th className="px-4 py-2 font-semibold">Who</th>
-                  <th className="px-4 py-2 font-semibold">Step</th>
-                  <th className="px-4 py-2 font-semibold">How</th>
-                  <th className="px-4 py-2 font-semibold">Due</th>
-                  <th className="px-4 py-2 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-4 py-2">{row.first_name || "A member"}</td>
-                    <td className="px-4 py-2">{STEPS.find((s) => s.id === row.step)?.label || row.step}</td>
-                    <td className="px-4 py-2">{CHANNEL[row.channel] || row.channel}</td>
-                    <td className="px-4 py-2 text-ink-muted">{dateTime(row.due_at)}</td>
-                    <td className="px-4 py-2">
-                      <span className={row.status === "failed" ? "text-danger" : row.status === "sent" ? "text-positive" : "text-ink-muted"}>{STATUS[row.status] || row.status}</span>
-                      {row.note ? <span className="ml-1 text-xs text-ink-faint">({row.note.replace(/_/g, " ")})</span> : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="flex flex-wrap items-center justify-between" style={{ gap: 8, padding: "6px 2px 0" }}>
+        <h2 className="t-headline cc-label">Messages</h2>
+      </div>
+      <nav className="cc-chips" aria-label="Show">
+        {FILTERS.map((f) => (
+          <Chip key={f.id} active={f.id === status} onClick={() => choose(f.id)}>
+            {f.label}
+          </Chip>
+        ))}
+      </nav>
+      <Card flush>
+        {loading ? (
+          <p className="t-foot cc-tertiary" style={{ padding: 16 }}>
+            Loading…
+          </p>
+        ) : rows.length ? (
+          <div className="cc-rows" style={{ padding: "0 8px" }}>
+            {rows.map((row) => {
+              const step = STEPS.find((s) => s.id === row.step);
+              const state = STATUS[row.status] || STATUS.due;
+              return (
+                <div key={row.id} className="cc-row">
+                  <Monogram name={row.first_name} tone="navy" />
+                  <div className="cc-row-main">
+                    <p className="t-sub t-strong cc-label cc-clip">
+                      {row.first_name || "A member"} · {step?.label || row.step}
+                    </p>
+                    <p className="t-cap1 cc-tertiary cc-clip">
+                      {CHANNEL[row.channel] || row.channel} · {row.status === "sent" && row.sent_at ? `sent ${dateTime(row.sent_at)}` : `due ${dateTime(row.due_at)}`}
+                      {row.note && row.status !== "sent" ? ` · ${noteOf(row.note)}` : ""}
+                    </p>
+                  </div>
+                  <Badge tone={state.tone}>{state.label}</Badge>
+                </div>
+              );
+            })}
           </div>
         ) : (
-          <p className="card p-6 text-sm text-ink-muted">No messages planned yet. The first join plans the series.</p>
+          <div style={{ padding: "4px 16px" }}>
+            <EmptyLine icon={Mail} tone="navy" title={status === "all" ? "No messages planned yet." : "Nothing here."} sub="The first member to join plans the whole series." />
+          </div>
         )}
-      </section>
-    </div>
+      </Card>
+    </Page>
   );
 }
 
-function Switch({ label, on, admin, onChange }) {
+function SwitchRow({ icon, tone, title, sub, checked, onChange, disabled }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-sm">
-      <span>{label}</span>
-      <input type="checkbox" className="h-5 w-5 accent-[hsl(var(--accent))]" checked={Boolean(on)} disabled={!admin} onChange={(e) => onChange(e.target.checked)} />
-    </label>
+    <div className="cc-row">
+      <IconTile icon={icon} tone={tone} />
+      <div className="cc-row-main">
+        <p className="t-sub t-strong cc-label">{title}</p>
+        <p className="t-cap1 cc-tertiary">{sub}</p>
+      </div>
+      <Switch checked={checked} onChange={onChange} label={title} disabled={disabled} />
+    </div>
   );
 }

@@ -29,6 +29,16 @@ each team member's own sign-in in the browser. The Practice app's code is never 
   own drafts (the brief's appendix). Edit copy here and nowhere else.
 - `src/lib/seasons.js`, `src/lib/season-shapes.js` — the Practice app's seasonal celebration, ported
   as is. A change to the motifs belongs in the Practice app first.
+- `src/styles/command-center.css` — the look. The layout and feel are the Detail on Demand Command
+  Center's (a floating frosted sidebar, large-title screens, glass cards, icon-tile rows, a hero strip,
+  count badges, a phone bar with a menu sheet); every color is the Practice's. The `tone-*` classes
+  (navy, plum, amber, green, gold, rust, ink) are the Practice app's routine colors: use them for
+  tiles, badges and charts, never a new hex.
+- `src/components/ui.jsx` — the kit every screen is built from: `Page`, `Card`, `IconTile`, `LinkRow`,
+  `Badge`, `Chip`, `Segmented`, `Switch`, `StatCard`, `Notice`, `EmptyState`, `Sheet`.
+- `src/lib/nav.js` — the sidebar's groups and items, as data. A new screen is an entry here and a route
+  in `src/App.jsx` (the suite checks the two match).
+- `src/lib/live.jsx` — the one Realtime channel, the badge counts and the celebration burst.
 - `src/index.css` — the Practice's color tokens. Never hard-code a color; both themes come from them.
 
 ## Privacy rules (non-negotiable)

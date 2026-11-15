@@ -1,62 +1,73 @@
-import React, { useEffect, useState } from "react";
-import Burst from "@/components/Burst";
-import PulseCard from "@/components/PulseCard";
+import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Activity, Plug } from "lucide-react";
+import PulseRow from "@/components/PulseRow";
+import { Card, Chip, EmptyState, Notice, Page, RefreshButton, Skeleton } from "@/components/ui";
+import { VIEWS, viewOf } from "@/lib/kinds";
+import { updatedLabel, useLive, useTick } from "@/lib/live";
 import { usePulse } from "@/lib/usePulse";
-import { chime } from "@/lib/sound";
 
-const FILTERS = [
-  { id: "", label: "Everything" },
-  { id: "join,upgrade", label: "Members" },
-  { id: "merch,gift", label: "Shop" },
-  { id: "trial_ending,cancel", label: "Needs you" }
-];
+const EMPTY = {
+  all: ["Nothing on the board yet.", "The first join, upgrade or merch order lands here the second Stripe says so."],
+  members: ["No joins or upgrades yet.", "Each new trial and each upgrade shows here as it happens."],
+  shop: ["No merch or gifts yet.", "Orders from the Practice Club shop and holiday gifts show here."],
+  needs: ["Nobody to reach right now.", "Cancellations and trials ending in 48 hours show here, with Handled."]
+};
 
-/** The whole feed, with the four ways to look at it. */
+/** The whole feed, with the four ways to look at it in the URL (?view=needs). */
 export default function Pulse() {
-  const [filter, setFilter] = useState("");
-  const kinds = filter ? filter.split(",") : undefined;
-  const { events, loading, error, arrived, clearArrived, update } = usePulse({ limit: 100, kinds });
-  const [burst, setBurst] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const view = viewOf(params.get("view"));
+  const { counts } = useLive();
+  useTick(30_000);
+  const { events, loading, error, at, reload, update } = usePulse({ limit: 100, kinds: view.kinds });
+  const [spinning, setSpinning] = useState(false);
 
-  useEffect(() => {
-    if (!arrived) return;
-    if (!arrived.quiet) {
-      setBurst({ id: arrived.id, bigger: Boolean(arrived.big) });
-      chime(Boolean(arrived.big));
-    }
-    clearArrived();
-  }, [arrived, clearArrived]);
+  const choose = (id) => {
+    const next = new URLSearchParams(params);
+    if (id === "all") next.delete("view");
+    else next.set("view", id);
+    setParams(next, { replace: true });
+  };
+  const refresh = async () => {
+    setSpinning(true);
+    await reload();
+    setTimeout(() => setSpinning(false), 500);
+  };
+
+  const shown = view.id === "needs" ? [...events].sort((a, b) => Number(Boolean(a.handled_at)) - Number(Boolean(b.handled_at))) : events;
+  const subtitle = [loading ? "" : `${events.length} moment${events.length === 1 ? "" : "s"}`, updatedLabel(at)].filter(Boolean).join(" · ");
+  const [emptyTitle, emptySub] = EMPTY[view.id];
 
   return (
-    <div className="space-y-4">
-      <Burst burst={burst} onDone={() => setBurst(null)} />
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-display text-xl mr-2">Live Pulse</h2>
-        {FILTERS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setFilter(item.id)}
-            className={`rounded-full px-3 py-1 text-sm border transition-colors ${
-              filter === item.id ? "bg-accent text-accent-ink border-accent" : "border-line-strong text-ink-muted hover:bg-canvas-sunken"
-            }`}
-          >
+    <Page title="Live Pulse" subtitle={subtitle || "Every member moment as it happens"} right={<RefreshButton busy={spinning} onClick={refresh} />}>
+      <nav className="cc-chips" aria-label="Show">
+        {VIEWS.map((item) => (
+          <Chip key={item.id} active={item.id === view.id} onClick={() => choose(item.id)} count={item.id === "needs" ? counts.needsYou : 0}>
             {item.label}
-          </button>
+          </Chip>
         ))}
-      </div>
-      {error ? <p className="text-sm text-danger">The feed didn't load: {error}</p> : null}
+      </nav>
+      {error ? (
+        <Notice icon={Plug} title="The feed can't be read yet">
+          {error}. Until the migration has run on the Practice's database, there is nothing to show.
+        </Notice>
+      ) : null}
       {loading ? (
-        <p className="text-sm text-ink-faint">Loading…</p>
-      ) : events.length ? (
-        <div className="grid gap-2.5 md:grid-cols-2">
-          {events.map((event) => (
-            <PulseCard key={event.id} event={event} onChange={update} />
-          ))}
-        </div>
+        <Skeleton height={320} />
+      ) : shown.length ? (
+        <Card flush>
+          <div className="cc-rows" style={{ padding: "0 8px" }}>
+            {shown.map((event) => (
+              <PulseRow key={event.id} event={event} onChange={update} />
+            ))}
+          </div>
+        </Card>
       ) : (
-        <p className="card p-6 text-sm text-ink-muted">Nothing here yet.</p>
+        <Card>
+          <EmptyState icon={Activity} title={emptyTitle} sub={emptySub} />
+        </Card>
       )}
-    </div>
+    </Page>
   );
 }

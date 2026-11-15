@@ -1,13 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "@/App";
+import { applyDark, initialDark } from "@/lib/theme";
 import "@/index.css";
+import "@/styles/command-center.css";
 
-// Light and dark follow the device, as the Practice's default does.
-const dark = window.matchMedia?.("(prefers-color-scheme: dark)");
-const follow = () => document.documentElement.classList.toggle("dark", Boolean(dark?.matches));
-follow();
-dark?.addEventListener?.("change", follow);
+// Light or dark before the first paint: the team member's pick, else the device.
+applyDark(initialDark());
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

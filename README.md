@@ -10,6 +10,11 @@ Realtime) · Vercel functions in `api/` · Resend for email, Twilio for text, a 
 This is a separate app from the Practice app (`practice-by-innerboard`). It shares the database and
 nothing else; its own tables are all prefixed `cc_`.
 
+**The look:** the Detail on Demand Command Center's layout (a floating sidebar grouped into Overview,
+Members and Team with count badges, large-title screens, a hero strip, "Needs you" and "Handled
+automatically today", trend tiles with a Daily, Weekly and Monthly switch, a phone bar with a menu
+sheet, and a dark mode toggle) in the Practice's ivory, navy and gold.
+
 ## What is in Phase 1
 
 | Piece | Where |

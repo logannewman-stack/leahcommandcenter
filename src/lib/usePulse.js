@@ -1,23 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLive } from "@/lib/live";
 import { supabase } from "@/lib/supabase";
 
 /**
- * The Live Pulse: the latest moments, and each new one the instant the server
- * writes it (Supabase Realtime on `cc_pulse_events`; the select policy decides
- * who hears it).
+ * The latest moments of the kinds asked for, kept current by the shared
+ * Realtime channel (src/lib/live.jsx): a new one is added at the top, a
+ * changed one (handled, say) is changed in place.
  *
- * `arrived` is the newest row that came in live, for the burst and the sound;
- * a screen reads it once and calls `clearArrived`.
- *
- * @param {{ limit?: number, kinds?: string[] }} [options]
+ * @param {{ limit?: number, kinds?: string[]|null }} [options]
  */
-export function usePulse({ limit = 30, kinds } = {}) {
+export function usePulse({ limit = 60, kinds = null } = {}) {
+  const { subscribe } = useLive();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [arrived, setArrived] = useState(null);
+  const [at, setAt] = useState(0);
   const kindsKey = kinds ? kinds.join(",") : "";
-  const seen = useRef(new Set());
 
   const load = useCallback(async () => {
     let query = supabase.from("cc_pulse_events").select("*").order("occurred_at", { ascending: false }).limit(limit);
@@ -25,39 +23,30 @@ export function usePulse({ limit = 30, kinds } = {}) {
     const { data, error: failed } = await query;
     if (failed) setError(failed.message);
     else {
+      setError("");
       setEvents(data || []);
-      seen.current = new Set((data || []).map((row) => row.id));
+      setAt(Date.now());
     }
     setLoading(false);
   }, [limit, kindsKey]);
 
   useEffect(() => {
+    setLoading(true);
     load();
   }, [load]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("cc_pulse_live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "cc_pulse_events" }, (payload) => {
-        const row = payload.new;
-        if (!row || seen.current.has(row.id)) return;
+  useEffect(
+    () =>
+      subscribe((type, row) => {
         if (kindsKey && !kindsKey.split(",").includes(row.kind)) return;
-        seen.current.add(row.id);
-        setEvents((now) => [row, ...now].slice(0, limit));
-        setArrived(row);
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "cc_pulse_events" }, (payload) => {
-        const row = payload.new;
-        if (!row) return;
-        setEvents((now) => now.map((event) => (event.id === row.id ? { ...event, ...row } : event)));
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [limit, kindsKey]);
+        if (type === "insert") setEvents((now) => [row, ...now.filter((event) => event.id !== row.id)].slice(0, limit));
+        else setEvents((now) => now.map((event) => (event.id === row.id ? { ...event, ...row } : event)));
+        setAt(Date.now());
+      }),
+    [subscribe, kindsKey, limit]
+  );
 
   const update = useCallback((id, patch) => setEvents((now) => now.map((event) => (event.id === id ? { ...event, ...patch } : event))), []);
 
-  return { events, loading, error, arrived, clearArrived: () => setArrived(null), reload: load, update };
+  return { events, loading, error, at, reload: load, update };
 }

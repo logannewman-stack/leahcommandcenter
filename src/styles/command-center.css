@@ -1,0 +1,518 @@
+/*
+ * The Command Center's look: the Detail on Demand Command Center's layout
+ * and feel (a floating frosted sidebar, large-title screens, glass cards,
+ * icon-tile rows, a glossy hero strip, count badges), painted in the
+ * Practice's own colors: the ivory page, the warm near-black, navy with
+ * gold. Every color here is one of the Practice's (src/index.css and the
+ * Practice app's routine colors); nothing is the DOD blue.
+ *
+ * Plain CSS, after index.css, so these rules win over Tailwind's base layer.
+ */
+
+/* ── Tokens ───────────────────────────────────────────────────────────────── */
+:root {
+  --cc-canvas: #f2ece0;
+  --cc-glass: rgba(251, 248, 243, 0.62);
+  --cc-glass-2: rgba(251, 248, 243, 0.78);
+  --cc-glass-3: rgba(253, 251, 247, 0.94);
+  --cc-sheen: rgba(255, 255, 255, 0.72);
+  --cc-sheen-top: rgba(255, 255, 255, 0.5);
+  --cc-edge: rgba(217, 207, 190, 0.7);
+  --cc-lift: 0 16px 40px -24px rgba(74, 56, 26, 0.38);
+  --cc-hair: rgba(27, 25, 22, 0.1);
+  --cc-fill: rgba(27, 35, 50, 0.06);
+  --cc-fill-2: rgba(27, 35, 50, 0.1);
+
+  --cc-label: #1b1916;
+  --cc-secondary: #4b4540;
+  --cc-tertiary: #67605a;
+  --cc-quaternary: #b5aa98;
+
+  /* The thing you press: the Practice's navy, lit from the top, with a gold edge. */
+  --cc-press-grad: linear-gradient(180deg, #2c3953 0%, #1b2332 100%);
+  --cc-press-ink: #f2ece0;
+  --cc-press-shadow: 0 8px 18px -9px rgba(27, 35, 50, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 1px rgba(203, 176, 137, 0.3);
+
+  --cc-alert: #a6463f;
+  --cc-focus: #213b60;
+  --cc-live: #2e6b57;
+  --cc-gold: #b08d57;
+  --cc-gilt: #cbb089;
+
+  --cc-topbar-h: 56px;
+}
+
+.dark {
+  --cc-canvas: #1b1916;
+  --cc-glass: rgba(36, 33, 29, 0.62);
+  --cc-glass-2: rgba(36, 33, 29, 0.82);
+  --cc-glass-3: rgba(48, 44, 38, 0.96);
+  --cc-sheen: rgba(255, 255, 255, 0.08);
+  --cc-sheen-top: rgba(255, 255, 255, 0.05);
+  --cc-edge: rgba(242, 236, 224, 0.07);
+  --cc-lift: 0 18px 44px -24px rgba(0, 0, 0, 0.75);
+  --cc-hair: rgba(242, 236, 224, 0.1);
+  --cc-fill: rgba(242, 236, 224, 0.07);
+  --cc-fill-2: rgba(242, 236, 224, 0.12);
+
+  --cc-label: #f2ece0;
+  --cc-secondary: #d9cfbe;
+  --cc-tertiary: #a89f93;
+  --cc-quaternary: #5e574f;
+
+  /* In the dark the accent turns to gold with navy type, as the Practice app does. */
+  --cc-press-grad: linear-gradient(180deg, #dbc59f 0%, #cbb089 100%);
+  --cc-press-ink: #1b2332;
+  --cc-press-shadow: 0 8px 18px -9px rgba(203, 176, 137, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+
+  --cc-alert: #c0605a;
+  --cc-focus: #cbb089;
+  --cc-live: #6fbf9c;
+}
+
+/* The tile, badge and chart colors: the Practice app's routine colors, one
+   hue per kind of thing. `--tone` fills a tile or a dot; `--tone-text` is the
+   shade that reads on the tone's own tint in each theme. */
+.tone-navy { --tone: #213b60; --tone-text: #213b60; }
+.tone-plum { --tone: #5e4b6e; --tone-text: #5e4b6e; }
+.tone-amber { --tone: #8c5e1a; --tone-text: #7f5517; }
+.tone-green { --tone: #2e6b57; --tone-text: #2a6450; }
+.tone-gold { --tone: #b08d57; --tone-text: #7a5e2e; }
+.tone-rust { --tone: #a6463f; --tone-text: #973f39; }
+.tone-ink { --tone: #8a8178; --tone-text: #5e5750; }
+.dark .tone-navy { --tone: #3b5b8c; --tone-text: #a9bedf; }
+.dark .tone-plum { --tone: #7a6290; --tone-text: #c8b6d8; }
+.dark .tone-amber { --tone: #a8752a; --tone-text: #e6bb75; }
+.dark .tone-green { --tone: #3e8a6f; --tone-text: #8ccfb3; }
+.dark .tone-gold { --tone: #b08d57; --tone-text: #d8c29e; }
+.dark .tone-rust { --tone: #b85a52; --tone-text: #eb9a92; }
+.dark .tone-ink { --tone: #7a7168; --tone-text: #bdb4aa; }
+
+/* ── Canvas ───────────────────────────────────────────────────────────────── */
+html,
+html body {
+  background-color: var(--cc-canvas);
+}
+html body {
+  background-image:
+    radial-gradient(1100px 640px at 102% -10%, rgba(176, 141, 87, 0.26), transparent 62%),
+    radial-gradient(900px 640px at -8% 2%, rgba(33, 59, 96, 0.1), transparent 60%),
+    radial-gradient(980px 720px at 70% 112%, rgba(203, 176, 137, 0.22), transparent 62%);
+  background-attachment: fixed;
+  color: var(--cc-label);
+}
+.dark body {
+  background-image:
+    radial-gradient(1100px 640px at 102% -10%, rgba(176, 141, 87, 0.17), transparent 62%),
+    radial-gradient(900px 700px at -8% 108%, rgba(33, 59, 96, 0.34), transparent 62%),
+    radial-gradient(760px 520px at 60% 120%, rgba(203, 176, 137, 0.08), transparent 60%);
+}
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 56, 26, 0.3) transparent;
+}
+.dark {
+  scrollbar-color: rgba(242, 236, 224, 0.2) transparent;
+}
+::selection {
+  background: rgba(203, 176, 137, 0.45);
+}
+
+/* ── Type: the DOD scale, in the Practice's two faces ──────────────────────── */
+.t-large { font-family: var(--font-display); font-size: 34px; line-height: 41px; font-weight: 500; letter-spacing: -0.6px; margin: 0; color: var(--cc-label); }
+.t-title3 { font-size: 20px; line-height: 25px; font-weight: 600; letter-spacing: -0.2px; margin: 0; }
+.t-headline { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.3px; margin: 0; }
+.t-sub { font-size: 15px; line-height: 20px; letter-spacing: -0.15px; margin: 0; }
+.t-foot { font-size: 13px; line-height: 18px; margin: 0; }
+.t-cap1 { font-size: 12px; line-height: 16px; margin: 0; }
+.t-cap2 { font-size: 11px; line-height: 13px; margin: 0; }
+.t-eyebrow { font-size: 11px; line-height: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+.t-num { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: -0.4px; }
+.t-strong { font-weight: 600; }
+.cc-label { color: var(--cc-label); }
+.cc-secondary { color: var(--cc-secondary); }
+.cc-tertiary { color: var(--cc-tertiary); }
+.cc-quaternary { color: var(--cc-quaternary); }
+.cc-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Glass ────────────────────────────────────────────────────────────────── */
+.cc-glass {
+  background-color: var(--cc-glass);
+  background-image: linear-gradient(180deg, var(--cc-sheen-top) 0%, transparent 44%);
+  box-shadow: inset 0 1px 0 var(--cc-sheen), inset 0 0 0 1px var(--cc-edge), var(--cc-lift);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .cc-glass { background-color: var(--cc-glass-3); }
+}
+
+/* ── The shell ────────────────────────────────────────────────────────────── */
+.cc-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+.cc-sidebar { display: none; }
+.cc-main { flex: 1; min-width: 0; }
+.cc-main:focus, .cc-main:focus-visible { outline: none; }
+.cc-content { max-width: 1180px; margin: 0 auto; }
+
+.cc-skip {
+  position: absolute; left: -9999px; top: 8px; z-index: 400; padding: 10px 14px; border-radius: 10px;
+  background: var(--cc-press-grad); color: var(--cc-press-ink); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.cc-skip:focus { left: 16px; }
+
+/* Phones: a frosted bar with the brand, the screen's title and the menu. */
+.cc-topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  min-height: var(--cc-topbar-h);
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) 8px 6px 16px;
+  box-sizing: border-box;
+  background: var(--cc-glass-2);
+  border-bottom: 0.5px solid var(--cc-hair);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+.cc-menu-button {
+  width: 44px; height: 44px; padding: 0; border: none; border-radius: 12px; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--cc-label);
+}
+
+.cc-mark { border-radius: 8px; display: block; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(203, 176, 137, 0.55), 0 6px 14px -6px rgba(176, 141, 87, 0.6); }
+
+/* Nav rows: the sidebar and the phone menu. */
+.cc-nav-link,
+.cc-nav-row {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 12px;
+  border: none; background: none; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2;
+  text-align: left; text-decoration: none; width: 100%; box-sizing: border-box; color: var(--cc-secondary);
+  -webkit-tap-highlight-color: transparent;
+}
+.cc-nav-link { cursor: pointer; transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }
+.cc-nav-link:active { transform: scale(0.985); }
+.cc-nav-link > svg, .cc-nav-row > svg { flex-shrink: 0; }
+.cc-nav-link[aria-current="page"] {
+  background: var(--cc-press-grad);
+  color: var(--cc-press-ink);
+  box-shadow: var(--cc-press-shadow);
+}
+@media (hover: hover) {
+  .cc-nav-link:not([aria-current="page"]):hover { background: var(--cc-fill-2); color: var(--cc-label); }
+}
+.cc-nav-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-count {
+  flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+  background: var(--cc-alert); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cc-count-lg { min-width: 22px; height: 22px; line-height: 22px; border-radius: 11px; padding: 0 7px; font-size: 13px; }
+.cc-section-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 10px 4px;
+  color: var(--cc-tertiary);
+}
+.cc-account { font-size: 12px; padding: 2px 10px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cc-tertiary); }
+
+.cc-icon-button {
+  width: 30px; height: 30px; flex: 0 0 30px; border: none; border-radius: 8px; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--cc-secondary);
+}
+.cc-icon-button:hover { background: var(--cc-fill-2); }
+
+/* "Live" beside the name while the realtime channel is connected. */
+.cc-live { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--cc-live); }
+.cc-live-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: cc-live-pulse 2.4s ease-out infinite; }
+@keyframes cc-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(46, 107, 87, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 6px rgba(46, 107, 87, 0); }
+}
+
+/* The phone menu: thumb-sized rows. */
+.cc-menu .cc-nav-link { min-height: 44px; font-size: 16px; padding: 0 12px; }
+.cc-menu .cc-section-label { padding: 10px 12px 4px; }
+.cc-menu-footer .cc-nav-row { min-height: 44px; font-size: 16px; padding: 0; }
+
+@media (min-width: 900px) {
+  .cc-shell { flex-direction: row; }
+  .cc-topbar { display: none; }
+  /* The sidebar floats as its own rounded pane of glass. */
+  .cc-sidebar {
+    display: flex; flex-direction: column;
+    width: 236px; flex: 0 0 236px;
+    margin: 12px 0 12px 12px;
+    position: sticky; top: 12px; height: calc(100dvh - 24px);
+    border-radius: 24px; overflow: hidden;
+    padding: 10px 12px 8px; box-sizing: border-box;
+  }
+  .cc-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 8px; }
+  .cc-sidebar .cc-nav-link { min-height: 34px; }
+  .cc-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: 0 -4px; padding: 0 4px 6px; }
+  .cc-sidebar .cc-section-label { padding: 10px 10px 3px; }
+  .cc-sidebar-footer { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; margin-top: 4px; padding-top: 6px; border-top: 0.5px solid var(--cc-hair); }
+  .cc-sidebar-footer .cc-account { flex: 1; min-width: 0; padding: 0 4px 0 10px; }
+  .cc-sidebar-footer .cc-signout { width: auto; min-height: 30px; padding: 0 8px; gap: 6px; font-size: 13px; flex: 0 0 auto; }
+  .cc-content { padding: 0 32px; }
+}
+
+/* ── Screens ──────────────────────────────────────────────────────────────── */
+/* A bar that sticks while the screen scrolls: clear over the large title,
+   frosted with the title in it once the large title has scrolled away. */
+.cc-navbar {
+  position: sticky; top: var(--cc-topbar-h); z-index: 20;
+  height: 52px; margin-bottom: -52px;
+  display: flex; align-items: center; padding: 0 8px 0 16px;
+  border-bottom: 0.5px solid transparent;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+.cc-navbar.is-compact {
+  background: var(--cc-glass-2);
+  border-bottom-color: var(--cc-hair);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+.cc-navbar-side { flex: 1; display: flex; }
+.cc-navbar-side.is-right { justify-content: flex-end; gap: 4px; }
+.cc-navbar-title {
+  flex: 2; text-align: center; opacity: 0; transform: translateY(6px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; visibility: hidden;
+}
+.cc-navbar.is-compact .cc-navbar-title { opacity: 1; transform: none; }
+@media (min-width: 900px) {
+  .cc-navbar { top: 0; }
+  .cc-navbar-title { visibility: visible; }
+}
+.cc-page-head { padding: 54px 20px 4px; }
+.cc-page-head .t-sub { margin-top: 2px; }
+.cc-page-body { padding: 8px 16px 40px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Cards: a rounded pane with an h2, so heading navigation finds each block. */
+.cc-card { border-radius: 16px; padding: 14px 16px 10px; }
+.cc-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.cc-card-flush { padding: 6px 8px; }
+
+.cc-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.cc-grid-3 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 720px) {
+  .cc-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .cc-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cc-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.cc-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* The dashboard's one elevated moment: the Practice's navy feature card, lit with gold. */
+.cc-hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; align-items: center;
+  padding: 20px 6px 18px; border-radius: 22px;
+  background: linear-gradient(135deg, #2b3b59 0%, #1b2332 55%, #141a26 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(203, 176, 137, 0.5), 0 18px 38px -18px rgba(27, 35, 50, 0.75);
+}
+.cc-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(420px 160px at 12% -30%, rgba(226, 190, 116, 0.32), transparent 70%),
+    radial-gradient(360px 180px at 96% 130%, rgba(203, 176, 137, 0.18), transparent 70%);
+}
+.cc-hero-stat { flex: 1; min-width: 0; text-align: center; padding: 0 4px; }
+.cc-hero-value { font-family: var(--font-display); font-size: 30px; line-height: 34px; font-weight: 500; letter-spacing: -0.6px; color: #f2ece0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.cc-hero-value.is-alert { display: inline-block; background: #f2ece0; color: #a6463f; border-radius: 999px; padding: 0 14px; }
+.cc-hero-label { margin-top: 4px; color: #cbb089; font-size: 11px; line-height: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.cc-hero-rule { width: 1px; align-self: stretch; margin: 4px 0; background: rgba(203, 176, 137, 0.32); }
+
+/* Icon tiles: the colored square every row and stat leads with. */
+.cc-tile {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--tone); color: #fff;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--tone) 32%, transparent);
+}
+
+/* Rows inside a card: a link or a line, with a hairline between. */
+.cc-rows > * + * { box-shadow: inset 0 0.5px 0 var(--cc-hair); }
+.cc-row {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 8px; margin: 0 -8px;
+  border: none; background: none; border-radius: 10px; text-align: left; text-decoration: none;
+  color: var(--cc-label); font: inherit; width: calc(100% + 16px); box-sizing: border-box;
+}
+a.cc-row, button.cc-row { cursor: pointer; transition: background-color 0.15s ease; }
+@media (hover: hover) {
+  a.cc-row:hover, button.cc-row:hover { background-color: var(--cc-fill); }
+}
+.cc-row-main { flex: 1; min-width: 0; }
+.cc-chevron { color: var(--cc-quaternary); flex-shrink: 0; }
+
+/* Status badges: a tint of the tone with a dot. */
+.cc-badge {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap;
+  padding: 3px 8px; border-radius: 7px;
+  color: var(--tone-text); background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+.cc-badge::before { content: ""; width: 5px; height: 5px; border-radius: 3px; background: var(--tone); flex-shrink: 0; }
+.cc-monogram {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%;
+  color: var(--tone-text); background: color-mix(in srgb, var(--tone) 14%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tone) 26%, transparent);
+  font-weight: 700;
+}
+
+/* Buttons. */
+.cc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 40px; padding: 0 16px; border-radius: 12px; border: none; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap;
+  transition: transform 0.12s ease, opacity 0.15s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cc-btn:active { transform: scale(0.98); }
+.cc-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+.cc-btn-sm { height: 32px; padding: 0 12px; border-radius: 10px; font-size: 13px; gap: 5px; }
+.cc-btn-primary { background: var(--cc-press-grad); color: var(--cc-press-ink); box-shadow: var(--cc-press-shadow); }
+.cc-btn-quiet {
+  background: rgba(255, 255, 255, 0.6); color: var(--cc-label);
+  box-shadow: inset 0 0 0 1px rgba(74, 56, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(74, 56, 26, 0.08);
+}
+.dark .cc-btn-quiet { background: rgba(242, 236, 224, 0.08); box-shadow: inset 0 0 0 1px rgba(242, 236, 224, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+@media (hover: hover) {
+  .cc-btn-quiet:not(:disabled):hover { background: rgba(255, 255, 255, 0.85); }
+  .dark .cc-btn-quiet:not(:disabled):hover { background: rgba(242, 236, 224, 0.14); }
+}
+.cc-icon-press {
+  width: 44px; height: 44px; border: none; background: none; cursor: pointer; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--cc-label);
+}
+.cc-icon-press:disabled { cursor: default; opacity: 0.6; }
+@media (hover: hover) { .cc-icon-press:not(:disabled):hover { background: var(--cc-fill); } }
+
+/* Fields: a glass well. */
+.cc-input {
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; box-sizing: border-box;
+  border: none; outline: none; font: inherit; font-size: 16px; color: var(--cc-label);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(74, 56, 26, 0.14), inset 0 1px 2px rgba(74, 56, 26, 0.06);
+}
+.dark .cc-input { background: rgba(242, 236, 224, 0.07); box-shadow: inset 0 0 0 1px rgba(242, 236, 224, 0.14); }
+.cc-input:focus { box-shadow: inset 0 0 0 1.5px var(--cc-focus), 0 0 0 4px color-mix(in srgb, var(--cc-focus) 16%, transparent); }
+select.cc-input { appearance: none; padding-right: 32px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px; background-size: 5px 5px; background-repeat: no-repeat; }
+
+/* The segmented control (chart range). */
+.cc-seg { display: flex; padding: 2px; border-radius: 10px; background: var(--cc-fill-2); }
+.cc-seg button {
+  flex: 1; border: none; background: none; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--cc-secondary); white-space: nowrap;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+.cc-seg button[aria-checked="true"] { background: var(--cc-glass-3); color: var(--cc-label); box-shadow: 0 1px 4px rgba(27, 25, 22, 0.14); }
+
+/* Filter chips. */
+.cc-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px -6px; padding: 2px 16px 10px; scroll-padding-left: 16px; }
+@media (min-width: 900px) {
+  .cc-chips { margin: 0 0 -6px; padding: 2px 2px 10px; }
+}
+/* A phone has no room for a moment's badge beside it: its colored tile already says the kind. */
+@media (max-width: 599px) {
+  .cc-pulse-badge { display: none; }
+}
+.cc-chips::-webkit-scrollbar { display: none; }
+.cc-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  height: 34px; padding: 0 14px; border-radius: 17px; border: none; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap;
+  background: var(--cc-fill-2); color: var(--cc-secondary);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.cc-chip[aria-pressed="true"] { background: var(--cc-press-grad); color: var(--cc-press-ink); box-shadow: var(--cc-press-shadow); }
+.cc-chip .cc-count { min-width: 17px; height: 17px; line-height: 17px; font-size: 10.5px; }
+.cc-chip[aria-pressed="true"] .cc-count { background: rgba(255, 255, 255, 0.24); }
+.dark .cc-chip[aria-pressed="true"] .cc-count { background: rgba(27, 35, 50, 0.24); color: #1b2332; }
+
+/* The switch. */
+.cc-switch {
+  position: relative; width: 51px; height: 31px; flex-shrink: 0; border: none; border-radius: 16px; padding: 0; cursor: pointer;
+  background: var(--cc-fill-2); transition: background-color 0.2s ease;
+}
+.cc-switch[aria-checked="true"] { background: var(--cc-press-grad); box-shadow: inset 0 0 0 1px rgba(203, 176, 137, 0.3); }
+.cc-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fdfbf7; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.cc-switch[aria-checked="true"]::after { transform: translateX(20px); }
+.cc-switch:disabled { opacity: 0.5; cursor: default; }
+
+/* Notices: a calm tinted band that says what an empty-looking screen means. */
+.cc-notice {
+  display: flex; align-items: flex-start; gap: 11px; padding: 12px 14px; border-radius: 14px;
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tone) 30%, transparent);
+}
+.cc-notice-icon {
+  width: 30px; height: 30px; border-radius: 15px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--tone) 20%, transparent); color: var(--tone-text);
+}
+
+/* Empty states: a floating tile over a soft gold glow. */
+.cc-empty { text-align: center; padding: 40px 24px 36px; }
+.cc-empty-art { position: relative; width: 64px; height: 64px; margin: 0 auto 16px; }
+.cc-empty-art::before { content: ""; position: absolute; inset: -16px; border-radius: 50%; background: rgba(203, 176, 137, 0.35); filter: blur(18px); }
+.cc-empty-tile {
+  position: relative; width: 64px; height: 64px; border-radius: 19px; display: flex; align-items: center; justify-content: center;
+  background: var(--cc-glass-3); color: var(--cc-focus);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 10px 28px rgba(74, 56, 26, 0.12), inset 0 0 0 0.5px var(--cc-hair);
+}
+
+/* Skeletons while the first read is in flight. */
+.cc-skeleton { border-radius: 16px; background: linear-gradient(90deg, var(--cc-fill) 0%, var(--cc-fill-2) 50%, var(--cc-fill) 100%); background-size: 200% 100%; animation: cc-shimmer 1.4s ease-in-out infinite; }
+@keyframes cc-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.cc-spinner { display: inline-block; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; opacity: 0.8; animation: cc-spin 0.7s linear infinite; }
+@keyframes cc-spin { to { transform: rotate(360deg); } }
+
+/* Cards that lift under the pointer (the phone's screen tiles). */
+@media (hover: hover) and (pointer: fine) {
+  .cc-lift { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+  .cc-lift:hover { transform: translateY(-1px); }
+}
+
+/* Entrance: a short fade and rise, once. */
+.cc-rise { animation: cc-rise 0.32s cubic-bezier(0.25, 0.1, 0.25, 1) both; }
+@keyframes cc-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ── The sheet (the phone menu) ───────────────────────────────────────────── */
+.cc-scrim { position: fixed; inset: 0; z-index: 90; background: rgba(20, 16, 10, 0.32); animation: cc-fade 0.2s ease both; }
+.cc-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 91; max-height: 88dvh;
+  display: flex; flex-direction: column; border-radius: 18px 18px 0 0;
+  background: var(--cc-glass-3); box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: cc-slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.cc-sheet-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--cc-quaternary); margin: 8px auto 2px; }
+.cc-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px 6px 20px; }
+.cc-sheet-body { overflow-y: auto; padding: 0 8px 8px; }
+.cc-sheet-foot { border-top: 0.5px solid var(--cc-hair); padding: 8px 20px 12px; }
+@keyframes cc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cc-slide-up { from { transform: translateY(100%); } to { transform: none; } }
+
+/* ── Sign-in ──────────────────────────────────────────────────────────────── */
+.cc-login { position: fixed; inset: 0; overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.cc-login-card { width: 100%; max-width: 400px; padding: 28px 24px 22px; border-radius: 22px; box-sizing: border-box; }
+.cc-login-mark { width: 64px; height: 64px; border-radius: 16px; margin: 0 auto; display: block; box-shadow: 0 0 0 1px rgba(203, 176, 137, 0.6), 0 16px 40px rgba(176, 141, 87, 0.35), 0 2px 8px rgba(0, 0, 0, 0.1); }
+.cc-or { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: var(--cc-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+.cc-or::before, .cc-or::after { content: ""; flex: 1; height: 1px; background: var(--cc-hair); }
+.cc-field-label { display: block; font-size: 13px; font-weight: 600; color: var(--cc-secondary); margin: 0 0 5px 2px; }
+.cc-link-button { background: none; border: none; min-height: 40px; padding: 6px 2px; font: inherit; font-size: 13.5px; color: var(--cc-secondary); cursor: pointer; }
+.cc-link-button:hover { color: var(--cc-label); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── Keyboard ─────────────────────────────────────────────────────────────── */
+:where(button, a, input, select, textarea, [role="button"], [role="switch"]):focus-visible {
+  outline: 2px solid var(--cc-focus);
+  outline-offset: 2px;
+}
+.cc-input:focus-visible { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-live-dot, .cc-skeleton, .cc-rise, .cc-sheet, .cc-scrim { animation: none; }
+}

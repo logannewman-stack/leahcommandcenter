@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Check, Copy, X } from "lucide-react";
+import { Bell, Clock, Copy, CreditCard, Database, KeyRound, Mail, MessageSquare, Plug, Smartphone, Webhook } from "lucide-react";
+import { Badge, Card, EmptyLine, IconTile, Notice, Page, RefreshButton } from "@/components/ui";
 import { callAdmin } from "@/lib/api";
 import { dateTime } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -10,15 +11,24 @@ import { useSession } from "@/lib/session";
  * no per key, and the addresses.
  */
 export default function Setup() {
-  const { me, team } = useSession();
+  const { me } = useSession();
   const [health, setHealth] = useState(null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
 
+  const load = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      setHealth(await callAdmin("health"));
+    } catch (failed) {
+      setError(failed.status === 503 ? "The server has no database key yet (SUPABASE_SERVICE_ROLE_KEY)." : failed.status === 404 ? "The server functions aren't running here. They run on Vercel, or locally with npm run dev:api." : failed.message);
+    }
+    setBusy(false);
+  };
   useEffect(() => {
-    callAdmin("health")
-      .then(setHealth)
-      .catch((failed) => setError(failed.status === 503 ? "The server has no database key yet (SUPABASE_SERVICE_ROLE_KEY)." : failed.message));
+    load();
   }, []);
 
   const copy = async (text) => {
@@ -34,7 +44,7 @@ export default function Setup() {
     setNote("");
     try {
       await callAdmin("discord", { method: "POST" });
-      setNote("Posted to #wins.");
+      setNote("Posted a test line to #wins.");
     } catch (failed) {
       setNote(`Not posted: ${failed.body?.error || failed.message}.`);
     }
@@ -42,94 +52,94 @@ export default function Setup() {
 
   const rows = health
     ? [
-        ["Database (service key)", health.database],
-        ["Stripe secret key", health.stripe.key],
-        ["Stripe webhook secret", health.stripe.webhook_secret],
-        ["Email (Resend)", health.email],
-        ["Text (Twilio)", health.sms],
-        ["Discord #wins webhook", health.discord],
-        ["Phone notifications (the Practice's push keys)", health.push.keys],
-        ["Hourly job secret", health.cron.secret]
+        { icon: Database, tone: "navy", title: "Database", sub: "The Practice's Supabase project, with the service key", ok: health.database },
+        { icon: CreditCard, tone: "plum", title: "Stripe key", sub: "Reads line items and recurring revenue", ok: health.stripe.key },
+        { icon: Webhook, tone: "plum", title: "Stripe webhook secret", sub: "This app's own endpoint, below", ok: health.stripe.webhook_secret },
+        { icon: Mail, tone: "green", title: "Email", sub: "Resend, for the Welcome Journey", ok: health.email },
+        { icon: Bell, tone: "gold", title: "Discord #wins", sub: "A channel webhook", ok: health.discord },
+        { icon: Clock, tone: "amber", title: "Hourly job", sub: health.cron.ran_at ? `Last ran ${dateTime(health.cron.ran_at)}` : "Hasn't run yet", ok: health.cron.secret },
+        { icon: MessageSquare, tone: "green", title: "Text", sub: "Twilio, after the carrier registration", ok: health.sms, optional: true },
+        { icon: Smartphone, tone: "navy", title: "Phone notifications", sub: "The Practice app's own push keys", ok: health.push.keys, optional: true }
       ]
     : [];
+  const missing = rows.filter((row) => !row.ok && !row.optional).length;
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <h2 className="font-display text-xl">Connected</h2>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        {health ? (
-          <div className="card divide-y divide-line">
-            {rows.map(([label, ok]) => (
-              <div key={label} className="px-4 py-2.5 flex items-center justify-between text-sm">
-                <span>{label}</span>
-                <span className={`flex items-center gap-1 text-xs ${ok ? "text-positive" : "text-ink-faint"}`}>
-                  {ok ? <Check size={14} /> : <X size={14} />} {ok ? "yes" : "not yet"}
-                </span>
-              </div>
-            ))}
-            <div className="px-4 py-2.5 flex items-center justify-between text-sm">
-              <span>Hourly job last ran</span>
-              <span className="text-xs text-ink-muted">{health.cron.ran_at ? dateTime(health.cron.ran_at) : "never"}</span>
-            </div>
-          </div>
-        ) : !error ? (
-          <p className="text-sm text-ink-faint">Checking…</p>
-        ) : null}
-      </section>
+    <Page title="Setup" subtitle={health ? (missing ? `${missing} still to connect` : "Everything is connected") : "What is connected"} right={<RefreshButton busy={busy} onClick={load} />}>
+      {error ? (
+        <Notice icon={Plug} title="Can't check the server">
+          {error}
+        </Notice>
+      ) : null}
 
-      {health ? (
-        <section className="space-y-3">
-          <h2 className="font-display text-xl">Stripe's second endpoint</h2>
-          <p className="text-sm text-ink-muted">
-            In Stripe, Developers → Webhooks → Add endpoint. The address and the events below; then the signing secret goes in Vercel as
-            STRIPE_WEBHOOK_SECRET.
-          </p>
-          <div className="card p-4 space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <code className="font-mono text-[13px] break-all">{health.stripe.webhook_url}</code>
-              <button type="button" className="btn-quiet !py-1 !px-2" onClick={() => copy(health.stripe.webhook_url)}>
-                <Copy size={13} />
-              </button>
-            </div>
-            <ul className="text-xs text-ink-muted font-mono">
-              {health.stripe.events.map((event) => (
-                <li key={event}>{event}</li>
+      <div className="cc-grid-2">
+        <Card title="Connections" caption={health ? `${rows.length - missing - rows.filter((r) => r.optional && !r.ok).length} of ${rows.length} on` : undefined}>
+          {health ? (
+            <div className="cc-rows">
+              {rows.map((row) => (
+                <div key={row.title} className="cc-row">
+                  <IconTile icon={row.icon} tone={row.tone} />
+                  <div className="cc-row-main">
+                    <p className="t-sub t-strong cc-label">{row.title}</p>
+                    <p className="t-cap1 cc-tertiary">{row.sub}</p>
+                  </div>
+                  <Badge tone={row.ok ? "green" : row.optional ? "ink" : "amber"}>{row.ok ? "Connected" : row.optional ? "Optional" : "Not yet"}</Badge>
+                </div>
               ))}
-            </ul>
-          </div>
-          <p className="text-xs text-ink-faint">
-            A gift subscription is any Stripe Payment Link whose metadata says kind = gift (and, if you like, item = hat plus one year). It counts the moment it is paid.
-          </p>
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <h2 className="font-display text-xl">The team</h2>
-        <div className="card divide-y divide-line">
-          {team.map((person) => (
-            <div key={person.email} className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="w-28 font-semibold">{person.name}</span>
-              <span className="w-32 text-ink-muted">{person.lane || "–"}</span>
-              <span className="flex-1 text-xs text-ink-faint">{(person.responsibilities || []).join(" · ")}</span>
-              {person.is_admin ? <span className="text-xs rounded-full border border-line-strong px-2 py-0.5">admin</span> : null}
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-ink-faint">Roles and responsibilities get their own page with the Team Board in Phase 2. For now the list is edited in Supabase (supabase/seed-team.sql).</p>
-      </section>
+          ) : (
+            <EmptyLine icon={Plug} tone="ink" title={busy ? "Checking…" : "Not checked yet."} />
+          )}
+        </Card>
 
-      {me?.is_admin ? (
-        <section className="space-y-3">
-          <h2 className="font-display text-xl">Try it</h2>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-quiet" onClick={testDiscord}>
-              Post a test line to #wins
-            </button>
-          </div>
-        </section>
+        <div className="cc-stack">
+          <Card title="Stripe's second endpoint">
+            <p className="t-foot cc-secondary" style={{ marginBottom: 10 }}>
+              In Stripe, Developers, Webhooks, Add endpoint. Use this address and these events, then put the signing secret in Vercel as STRIPE_WEBHOOK_SECRET.
+            </p>
+            {health ? (
+              <>
+                <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
+                  <code className="t-foot cc-label" style={{ fontFamily: "var(--font-mono)", wordBreak: "break-all", flex: 1 }}>
+                    {health.stripe.webhook_url}
+                  </code>
+                  <button type="button" className="cc-btn cc-btn-quiet cc-btn-sm" onClick={() => copy(health.stripe.webhook_url)}>
+                    <Copy size={13} aria-hidden="true" /> Copy
+                  </button>
+                </div>
+                <ul className="cc-rows" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {health.stripe.events.map((event) => (
+                    <li key={event} className="t-cap1 cc-secondary" style={{ fontFamily: "var(--font-mono)", padding: "6px 0" }}>
+                      {event}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            <p className="t-cap1 cc-tertiary" style={{ marginTop: 8 }}>
+              A holiday gift is any Stripe Payment Link whose metadata says kind = gift, and item = hat plus one year if you like. It counts the moment it is paid.
+            </p>
+          </Card>
+
+          {me?.is_admin ? (
+            <Card title="Try it">
+              <div className="flex flex-wrap gap-2" style={{ padding: "4px 0 6px" }}>
+                <button type="button" className="cc-btn cc-btn-quiet" onClick={testDiscord}>
+                  <Bell size={15} aria-hidden="true" /> Post a test line to #wins
+                </button>
+              </div>
+              <p className="t-cap1 cc-tertiary flex items-center gap-2">
+                <KeyRound size={12} aria-hidden="true" /> Each journey email has its own Test on the Welcome Journey.
+              </p>
+            </Card>
+          ) : null}
+        </div>
+      </div>
+      {note ? (
+        <p className="t-foot cc-secondary" style={{ wordBreak: "break-all", padding: "0 4px" }}>
+          {note}
+        </p>
       ) : null}
-      {note ? <p className="text-sm text-ink-muted break-all">{note}</p> : null}
-    </div>
+    </Page>
   );
 }
