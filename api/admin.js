@@ -5,6 +5,7 @@ import { discordConfigured, postWins } from "./_lib/discord.js";
 import { stripeConfig } from "./_lib/stripe.js";
 import { WEBHOOK_EVENTS } from "./_lib/pulse.js";
 import { EMAIL_FOOTER, STEPS, discordLine, firstNameOf, listClearedLine, messageFor } from "./_lib/words.js";
+import { momentsAhead } from "./_lib/moments.js";
 
 /**
  * What the team asks the server for. Every address needs a signed-in person
@@ -15,6 +16,8 @@ import { EMAIL_FOOTER, STEPS, discordLine, firstNameOf, listClearedLine, message
  *   POST /api/admin/test   { step }   a journey email, sent to the caller's own inbox
  *   POST /api/admin/discord           a line in #wins, to see it land (admin)
  *   POST /api/admin/checkoff { id }   a to-do the caller just finished, in #wins, once
+ *   GET  /api/admin/moments           members' 30 day, 90 day and one year marks this week
+ *   POST /api/admin/invite { email }  a teammate's one-time sign-in link, by email (admin)
  *
  * One function rather than four: the Hobby plan deploys at most twelve.
  */
@@ -144,6 +147,55 @@ export default async function handler(req, res) {
     let cleared = false;
     if (task.assignee_email === me.email && !left) cleared = (await postWins(listClearedLine(first))).sent;
     return res.status(200).json({ posted: posted.sent, cleared });
+  }
+
+  if (op === "invite" && req.method === "POST") {
+    if (!me.is_admin) return res.status(403).json({ error: "admins_only" });
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      return res.status(400).json({ error: "bad_request" });
+    }
+    const email = String(body.email || "").trim().toLowerCase();
+    const { data: person } = await admin.from("cc_team").select("email, name, active").eq("email", email).maybeSingle();
+    if (!person) return res.status(404).json({ error: "not_on_team" });
+    if (person.active === false) return res.status(409).json({ error: "paused" });
+    if (!emailConfigured()) return res.status(503).json({ error: "no_email_provider" });
+    const origin = appOrigin(req);
+    // A one-time link that signs them in here. A teammate without a Practice
+    // account yet gets one made for them by the invite.
+    let link = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo: origin } });
+    if (link.error) link = await admin.auth.admin.generateLink({ type: "invite", email, options: { redirectTo: origin } });
+    const url = link.data?.properties?.action_link;
+    if (link.error || !url) {
+      console.error("admin invite:", link.error?.message);
+      return res.status(502).json({ error: "no_link" });
+    }
+    const first = firstNameOf(person.name);
+    const from = firstNameOf(me.name);
+    const { text, html } = emailBody({
+      title: `${first}, you're on the team`,
+      paragraphs: [
+        `${from} added you to The Practice Command Center: your to-dos for the day, the live pulse of the community, and the team's wins in one place.`,
+        "The button signs you in. It works once and for the next hour. After that, sign in at the same address with Google or your Practice email."
+      ],
+      url,
+      button: "Open the Command Center",
+      signoff: `See you in there,\n${from}`,
+      footer: `You're getting this because ${from} added ${email} to the team. ${origin}`
+    });
+    const sent = await sendEmail({ to: email, subject: `${from} added you to the Command Center`, text, html, fromName: "The Practice Command Center", replyTo: me.email, once: `invite:${email}:${Math.floor(Date.now() / 60000)}` });
+    return res.status(sent.sent ? 200 : 502).json({ sent: sent.sent, to: email, error: sent.sent ? undefined : sent.error || sent.skipped });
+  }
+
+  if (op === "moments" && req.method === "GET") {
+    try {
+      return res.status(200).json({ moments: await momentsAhead(admin, new Date()) });
+    } catch (error) {
+      console.error("admin moments:", error?.message);
+      return res.status(500).json({ error: "upstream" });
+    }
   }
 
   return res.status(404).json({ error: "not_found" });

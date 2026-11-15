@@ -4,6 +4,7 @@ import {
   Calendar, CheckCircle2, Clock, Gift, Heart, HeartHandshake, ListChecks, MailWarning, MinusCircle, Package, PenLine, Plug,
   Send, ShoppingBag, Sparkles, TrendingUp, UserPlus, Users
 } from "lucide-react";
+import { ComingUp, MorningNote, NextMilestone } from "@/components/MorningNote";
 import { NAV_ICONS } from "@/components/Shell";
 import { TeamTodayCard, YourTodosCard } from "@/components/todos/TodoCards";
 import Sparkline from "@/components/Sparkline";
@@ -186,6 +187,10 @@ export default function Dashboard() {
               <div className="cc-hero-label">Members to reach</div>
             </div>
           </div>
+          <NextMilestone score={score} />
+
+          {/* Leah's note to the team, at the top of everyone's day */}
+          <MorningNote />
 
           {/* The to-dos: everyone's own list, and Leah's view of the team's day */}
           <div className="cc-grid-2">
@@ -226,6 +231,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </Card>
+              <ComingUp />
             </div>
             <Card title="Today" caption={today.length ? plural(today.length, "moment") : undefined}>
               {today.length === 0 ? (
@@ -370,7 +376,7 @@ export default function Dashboard() {
   );
 }
 
-const SCREEN_TONES = { todos: "green", pulse: "rust", journey: "navy", team: "plum", setup: "ink" };
+const SCREEN_TONES = { todos: "green", pulse: "rust", journey: "navy", team: "plum", thanks: "gold", dream: "amber", setup: "ink" };
 
 /** What happened, in a few words, for the Today list. */
 function todayLine(event) {

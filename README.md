@@ -25,6 +25,12 @@ sheet, and a dark mode toggle) in the Practice's ivory, navy and gold.
 | **Gift tracking** — any Stripe Payment Link whose metadata says `kind=gift` counts, on the board and in Discord | `api/_lib/pulse.js` |
 | **Scoreboard** — the top row: trials, trial to paid, paying members and recurring revenue, merch, app use, gifts | `supabase/migrations`, `cc_scoreboard()` |
 | **Needs you** — cancels and trials ending as quiet cards, with Handled and, for an admin, the member's address for a personal note | `src/components/PulseRow.jsx`, `api/admin.js` |
+| **Daily log** — "what I got done today", one line at a time, beyond the to-dos; Leah reads the whole team's, live | `src/components/todos/DayLog.jsx`, `cc_logs` |
+| **Morning message** — Leah's note at the top of everyone's dashboard, written for today or scheduled for tomorrow | `src/components/MorningNote.jsx`, `cc_notes` |
+| **Gratitude Wall** — thank a teammate for something specific; the wall updates live, with the quarter's most thanked | `src/pages/Thanks.jsx`, `cc_shoutouts` |
+| **Dream Board** — Leah's vision and mission, big goals with bars that fill from the live numbers, the team bonus pool, the milestone tracks and the cities; milestones celebrate once, on every screen and in #wins | `src/pages/Dream.jsx`, `cc_goals`, `api/_lib/milestones.js` |
+| **Roles** — an admin adds teammates, edits their lane and what they own, decides who gives out to-dos, and emails a one-time sign-in link | `src/pages/Team.jsx`, `api/admin.js` (`invite`) |
+| **Coming up** — members' 30 day, 90 day and one year marks this week, first names only | `api/_lib/moments.js` |
 | **Team to-dos** — Leah gives out to-dos and sees everyone's list with a ring per person and each check-off live; everyone else sees only their own and checks them off. Repeating to-dos, the month's burst on a check, a bigger one for a cleared list, Undo, and a line in #wins | `src/pages/Todos.jsx`, `src/lib/tasksStore.jsx`, `supabase/migrations/20261116000000_team_todos.sql` |
 
 ## Team to-dos
@@ -50,7 +56,9 @@ In the Supabase dashboard of the **Practice app's project**, open the SQL editor
 `supabase/migrations/20261115000000_command_center.sql`. It adds the `cc_` tables, their row-level
 security, the Realtime publication for the board, and `cc_scoreboard()`. Safe to run more than once.
 
-Then run `supabase/migrations/20261116000000_team_todos.sql`, the team to-dos.
+Then run `supabase/migrations/20261116000000_team_todos.sql`, the team to-dos, and
+`supabase/migrations/20261117000000_thanks_dream_log.sql`: the Gratitude Wall, the morning message, the
+Dream Board's goals and settings, the cities, and the daily log. Both are safe to run more than once.
 
 Then open `supabase/seed-team.sql`, put each person's sign-in email in place of the placeholders, and
 run it. Leah's row has `assigns_tasks` on: she gives out the to-dos and sees all of them. An admin can

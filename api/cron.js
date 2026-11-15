@@ -3,7 +3,9 @@ import { memberById, quietMembers, trialsEndingWithin } from "./_lib/members.js"
 import { recordPulse } from "./_lib/pulse.js";
 import { planJourney, sendDue } from "./_lib/journey.js";
 import { snapshot } from "./_lib/scoreboard.js";
-import { stepById } from "./_lib/words.js";
+import { discordLine, stepById } from "./_lib/words.js";
+import { postWins } from "./_lib/discord.js";
+import { milestonesFor } from "./_lib/milestones.js";
 
 /**
  * The hourly job (`vercel.json`, `0 * * * *`). Vercel calls it with
@@ -15,6 +17,9 @@ import { stepById } from "./_lib/words.js";
  *      only once Leah's copy is in (`quiet_10` enabled in words.js).
  *   3. The Welcome Journey's due steps, sent.
  *   4. The scoreboard's snapshot from Stripe.
+ *   5. Milestones: 500 members, 100 paying, the first $10K month. Each one
+ *      is a pulse card once (the whole screen celebrates it) and a line in
+ *      #wins.
  *
  * Each part keeps its own note and never stops the next; the run's notes are
  * kept on `cc_stats` for the Setup page.
@@ -81,6 +86,33 @@ export default async function handler(req, res) {
     notes.stats = await snapshot(admin);
   } catch (error) {
     notes.stats = `error: ${error?.message}`;
+  }
+
+  try {
+    const [members, paying, { data: stats }, settings] = await Promise.all([
+      admin.from("profiles").select("id", { count: "exact", head: true }),
+      admin.from("memberships").select("user_id", { count: "exact", head: true }).in("status", ["active", "past_due"]),
+      admin.from("cc_stats").select("mrr_cents").eq("id", true).maybeSingle(),
+      settingsOf(admin)
+    ]);
+    const made = [];
+    for (const m of milestonesFor({ members: Number(members.count) || 0, paying: Number(paying.count) || 0, mrr_cents: Number(stats?.mrr_cents) || 0 })) {
+      const { inserted, row } = await recordPulse(admin, {
+        kind: "milestone",
+        first_name: "",
+        detail: m.detail,
+        big: true,
+        source: "cron",
+        source_id: m.source_id,
+        occurred_at: now.toISOString()
+      });
+      if (!inserted) continue;
+      made.push(m.source_id);
+      if (settings.discord_wins_enabled) await postWins(discordLine(row));
+    }
+    notes.milestones = made.length ? made : 0;
+  } catch (error) {
+    notes.milestones = `error: ${error?.message}`;
   }
 
   const ms = Date.now() - started;

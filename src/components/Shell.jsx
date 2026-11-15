@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Activity, LayoutDashboard, ListChecks, LogOut, Mail, Menu, Moon, Settings, Sun, Users, Volume2, VolumeX } from "lucide-react";
+import { Activity, HeartHandshake, LayoutDashboard, ListChecks, LogOut, Mail, Menu, Moon, Settings, Sparkles, Sun, Users, Volume2, VolumeX } from "lucide-react";
 import { Sheet, Switch } from "@/components/ui";
 import { useLive } from "@/lib/live";
 import { APP_NAME, NAV_GROUPS, ORG_NAME, activeItem, badgeCount, documentTitle } from "@/lib/nav";
@@ -29,6 +29,8 @@ export const NAV_ICONS = {
   pulse: Activity,
   journey: Mail,
   team: Users,
+  thanks: HeartHandshake,
+  dream: Sparkles,
   setup: Settings
 };
 

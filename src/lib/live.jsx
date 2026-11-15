@@ -1,7 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Burst from "@/components/Burst";
 import { chime } from "@/lib/sound";
+import { Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/lib/toast";
 
 const LiveContext = createContext(null);
 
@@ -22,6 +24,9 @@ export function LiveProvider({ children }) {
   const [counts, setCounts] = useState({ cancels: 0, trialsEnding: 0, needsYou: 0, journeyFailed: 0, known: false });
   const [burst, setBurst] = useState(null);
   const listeners = useRef(new Set());
+  const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const refreshCounts = useCallback(async () => {
     const quiet = (kind) =>
@@ -55,6 +60,8 @@ export function LiveProvider({ children }) {
           setBurst({ id: row.id, bigger: Boolean(row.big) });
           chime(Boolean(row.big));
         }
+        // A milestone: the movement crossed a line. Everyone hears it, wherever they are.
+        if (row.kind === "milestone" && row.detail?.title) toastRef.current?.({ title: row.detail.title, body: row.detail.body, icon: Trophy, tone: "gold" });
         refreshCounts();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "cc_pulse_events" }, (payload) => {

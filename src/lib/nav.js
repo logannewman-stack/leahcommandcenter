@@ -5,8 +5,8 @@
  *
  * Grouped the way the Detail on Demand Command Center groups its own:
  * Overview (the day and the team's to-dos), Members (what members receive),
- * Team (who owns what and what is connected). Only screens that work are
- * listed: Phase 3's rewards join here when they are built.
+ * Team (who owns what, the thank yous, the Dream Board and what is
+ * connected). Only screens that work are listed.
  */
 
 export const APP_NAME = "Command Center";
@@ -40,6 +40,8 @@ export const NAV_GROUPS = [
     label: "Team",
     items: [
       { key: "team", path: "/team", label: "Roles", hint: "Who owns what" },
+      { key: "thanks", path: "/thanks", label: "Gratitude Wall", hint: "Thank a teammate for something specific" },
+      { key: "dream", path: "/dream", label: "Dream Board", hint: "The vision, the big goals, the milestones" },
       { key: "setup", path: "/setup", label: "Setup", hint: "What is connected" }
     ]
   }

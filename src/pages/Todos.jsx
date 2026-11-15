@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ListChecks, Plus, Sparkles } from "lucide-react";
+import DayLog from "@/components/todos/DayLog";
 import QuickAdd from "@/components/todos/QuickAdd";
 import TaskRow from "@/components/todos/TaskRow";
 import TaskSheet from "@/components/todos/TaskSheet";
@@ -9,6 +10,7 @@ import TeamStrip from "@/components/todos/TeamStrip";
 import { Card, EmptyState, Monogram, Notice, Page, RefreshButton, Ring, Skeleton } from "@/components/ui";
 import { clock } from "@/lib/kinds";
 import { updatedLabel, useTick } from "@/lib/live";
+import { useSession } from "@/lib/session";
 import { SECTIONS, groupTasks, progressFor, sectionOf } from "@/lib/tasks";
 import { useTasks } from "@/lib/tasksStore";
 
@@ -26,6 +28,7 @@ const HOLD_MS = 650;
  */
 export default function Todos() {
   const { tasks, mine, loading, error, at, today, lead, email, people, personOf, reload, setDone, create } = useTasks();
+  const { me } = useSession();
   const [params, setParams] = useSearchParams();
   useTick(30_000);
   const who = lead ? params.get("who") || "all" : email;
@@ -196,6 +199,8 @@ export default function Todos() {
                 )}
               </Card>
             )}
+
+            <DayLog email={email} lead={lead} who={who} personOf={personOf} today={today} isAdmin={Boolean(me?.is_admin)} />
           </div>
 
           {lead ? (

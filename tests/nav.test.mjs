@@ -10,7 +10,7 @@ test("the nav is grouped as the DOD Command Center's: Overview, Members, Team", 
   );
   assert.deepEqual(
     NAV_ITEMS.map((i) => i.path),
-    ["/", "/todos", "/pulse", "/journey", "/team", "/setup"]
+    ["/", "/todos", "/pulse", "/journey", "/team", "/thanks", "/dream", "/setup"]
   );
   assert.equal(new Set(NAV_ITEMS.map((i) => i.key)).size, NAV_ITEMS.length, "keys are unique");
 });

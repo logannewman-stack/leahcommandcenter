@@ -8,11 +8,13 @@ import { SessionProvider, useSession } from "@/lib/session";
 import { TasksProvider } from "@/lib/tasksStore";
 import { ToastProvider } from "@/lib/toast";
 import Dashboard from "@/pages/Dashboard";
+import Dream from "@/pages/Dream";
 import Journey from "@/pages/Journey";
 import Pulse from "@/pages/Pulse";
 import Setup from "@/pages/Setup";
 import SignIn, { NotOnTeam } from "@/pages/SignIn";
 import Team from "@/pages/Team";
+import Thanks from "@/pages/Thanks";
 import Todos from "@/pages/Todos";
 
 /** The gate: signed out is the sign-in, signed in but not on the team is a polite no, the team gets the app. */
@@ -41,6 +43,8 @@ function Gate() {
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/journey" element={<Journey />} />
               <Route path="/team" element={<Team />} />
+              <Route path="/thanks" element={<Thanks />} />
+              <Route path="/dream" element={<Dream />} />
               <Route path="/setup" element={<Setup />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
