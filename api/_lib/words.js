@@ -279,6 +279,11 @@ export function discordLine(event, counts = {}) {
   }
 }
 
+/** The line in #wins when someone clears every to-do due today. */
+export function listClearedLine(firstName) {
+  return `🎉 ${firstName || "Someone"} cleared today's list.`;
+}
+
 /** Which kinds post to #wins at all. */
 export const POSTS_TO_DISCORD = new Set(["join", "upgrade", "merch", "gift", "referral", "checkoff", "shoutout", "milestone"]);
 

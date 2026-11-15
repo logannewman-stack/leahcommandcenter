@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Activity, LayoutDashboard, LogOut, Mail, Menu, Moon, Settings, Sun, Users, Volume2, VolumeX } from "lucide-react";
+import { motion } from "framer-motion";
+import { Activity, LayoutDashboard, ListChecks, LogOut, Mail, Menu, Moon, Settings, Sun, Users, Volume2, VolumeX } from "lucide-react";
 import { Sheet, Switch } from "@/components/ui";
 import { useLive } from "@/lib/live";
 import { APP_NAME, NAV_GROUPS, ORG_NAME, activeItem, badgeCount, documentTitle } from "@/lib/nav";
 import { useSession } from "@/lib/session";
 import { setSoundOn, soundOn } from "@/lib/sound";
+import { useTasks } from "@/lib/tasksStore";
 import { useTheme } from "@/lib/theme";
 
 /*
@@ -23,6 +25,7 @@ import { useTheme } from "@/lib/theme";
 
 export const NAV_ICONS = {
   dashboard: LayoutDashboard,
+  todos: ListChecks,
   pulse: Activity,
   journey: Mail,
   team: Users,
@@ -106,7 +109,9 @@ const scrollTop = () => window.scrollTo?.({ top: 0, left: 0, behavior: "smooth" 
 
 export default function Shell() {
   const { me, user, signOut } = useSession();
-  const { live, counts } = useLive();
+  const { live, counts: liveCounts } = useLive();
+  const { myDue } = useTasks();
+  const counts = { ...liveCounts, myTodos: myDue };
   const { dark, toggle } = useTheme();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -192,13 +197,17 @@ export default function Shell() {
         </div>
         <button type="button" className="cc-menu-button" aria-label="Menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
           <Menu size={24} strokeWidth={2.1} aria-hidden="true" />
+          {counts.needsYou + counts.myTodos > 0 ? <span className="cc-menu-dot" aria-hidden="true" /> : null}
           {counts.needsYou > 0 ? <span className="sr-only">, {counts.needsYou} need you</span> : null}
         </button>
       </header>
 
       <main id="cc-main" ref={mainRef} tabIndex={-1} className="cc-main">
         <div className="cc-content">
-          <Outlet />
+          {/* Each screen arrives with a short rise, as a native app's does. */}
+          <motion.div key={active.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, ease: [0.25, 0.1, 0.25, 1] }}>
+            <Outlet />
+          </motion.div>
         </div>
       </main>
 

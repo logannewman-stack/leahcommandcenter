@@ -4,9 +4,9 @@
  * React, no browser), so the suite can hold it under plain Node.
  *
  * Grouped the way the Detail on Demand Command Center groups its own:
- * Overview (the day), Members (what members receive), Team (who owns what
- * and what is connected). Only screens that work are listed: Phase 2's Team
- * Board and Phase 3's rewards join here when they are built.
+ * Overview (the day and the team's to-dos), Members (what members receive),
+ * Team (who owns what and what is connected). Only screens that work are
+ * listed: Phase 3's rewards join here when they are built.
  */
 
 export const APP_NAME = "Command Center";
@@ -24,6 +24,7 @@ export const NAV_GROUPS = [
     label: "Overview",
     items: [
       { key: "dashboard", path: "/", label: "Dashboard", hint: "What needs you, today, and the trends" },
+      { key: "todos", path: "/todos", label: "To-dos", hint: "The team's list, and what's done", badge: { key: "myTodos", what: "due" } },
       { key: "pulse", path: "/pulse", label: "Live Pulse", hint: "Every member moment as it happens", badge: { key: "needsYou", what: "need you" } }
     ]
   },

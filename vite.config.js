@@ -20,6 +20,16 @@ export default defineConfig({
     }
   },
   build: {
-    sourcemap: false
+    sourcemap: false,
+    // The libraries change less often than the app: their own files, cached longer.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          supabase: ["@supabase/supabase-js"],
+          motion: ["framer-motion"]
+        }
+      }
+    }
   }
 });

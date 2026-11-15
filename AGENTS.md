@@ -39,6 +39,10 @@ each team member's own sign-in in the browser. The Practice app's code is never 
 - `src/lib/nav.js` — the sidebar's groups and items, as data. A new screen is an entry here and a route
   in `src/App.jsx` (the suite checks the two match).
 - `src/lib/live.jsx` — the one Realtime channel, the badge counts and the celebration burst.
+- `src/lib/tasksStore.jsx` — the team to-dos: what each person may see, kept live, and every change
+  drawn at once and saved after (a failed save puts it back and says so). `src/lib/tasks.js` holds the
+  dates, sections and progress as pure functions; `nextDue()` must match `cc_next_due()` in the migration.
+- `src/lib/toast.jsx` — the notes that rise from the bottom ("Done · Undo", "Abra finished a to-do").
 - `src/index.css` — the Practice's color tokens. Never hard-code a color; both themes come from them.
 
 ## Privacy rules (non-negotiable)
@@ -54,6 +58,9 @@ These come from the brief and from the Practice app's own rules, and they are en
   on those two surfaces. `cc_pulse_events` carries no email, phone or payment detail.
 - **Emails, phones and payment details are the admin view's only** (`api/admin.js`, a team admin,
   on request, for one member at a time). They are never stored on this app's own tables.
+- **To-dos: Leah sees all, everyone else their own.** `cc_team.assigns_tasks` marks who gives them
+  out. The select policy on `cc_tasks` is the guard; a teammate's only write is `cc_set_task_done()`.
+  Never widen either to make a screen easier.
 - **Texting needs the member's opt-in** (`profiles.reminder_sms` with a number) and the texting switch
   on in Settings. No opt-in, no text, whatever the journey says.
 - **Secrets stay on the server.** `SUPABASE_SERVICE_ROLE_KEY`, Stripe, Resend, Twilio and Discord keys

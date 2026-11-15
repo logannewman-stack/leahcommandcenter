@@ -4,7 +4,7 @@ import { emailConfigured, smsConfigured, emailBody, sendEmail } from "./_lib/not
 import { discordConfigured, postWins } from "./_lib/discord.js";
 import { stripeConfig } from "./_lib/stripe.js";
 import { WEBHOOK_EVENTS } from "./_lib/pulse.js";
-import { EMAIL_FOOTER, STEPS, firstNameOf, messageFor } from "./_lib/words.js";
+import { EMAIL_FOOTER, STEPS, discordLine, firstNameOf, listClearedLine, messageFor } from "./_lib/words.js";
 
 /**
  * What the team asks the server for. Every address needs a signed-in person
@@ -14,6 +14,7 @@ import { EMAIL_FOOTER, STEPS, firstNameOf, messageFor } from "./_lib/words.js";
  *   GET  /api/admin/member?id=…       one member's contact details, for a personal note (admin)
  *   POST /api/admin/test   { step }   a journey email, sent to the caller's own inbox
  *   POST /api/admin/discord           a line in #wins, to see it land (admin)
+ *   POST /api/admin/checkoff { id }   a to-do the caller just finished, in #wins, once
  *
  * One function rather than four: the Hobby plan deploys at most twelve.
  */
@@ -107,6 +108,42 @@ export default async function handler(req, res) {
     if (!me.is_admin) return res.status(403).json({ error: "admins_only" });
     const posted = await postWins(`✅ The Practice Command Center is connected to #wins. (${me.name} checked.)`);
     return res.status(posted.sent ? 200 : 503).json(posted);
+  }
+
+  if (op === "checkoff" && req.method === "POST") {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      return res.status(400).json({ error: "bad_request" });
+    }
+    const id = String(body.id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "bad_request" });
+    const { data: task } = await admin.from("cc_tasks").select("*").eq("id", id).maybeSingle();
+    if (!task) return res.status(404).json({ error: "not_found" });
+    // Only the person who checked it off, only once, and only while it is fresh.
+    if (task.status !== "done" || task.done_by !== me.email) return res.status(409).json({ error: "not_done_by_you" });
+    if (task.announced_at) return res.status(200).json({ already: true });
+    if (Date.now() - Date.parse(task.done_at) > 15 * 60 * 1000) return res.status(200).json({ stale: true });
+    const { data: claimed } = await admin.from("cc_tasks").update({ announced_at: new Date().toISOString() }).eq("id", id).is("announced_at", null).select("id");
+    if (!claimed?.length) return res.status(200).json({ already: true });
+
+    const settings = await settingsOf(admin);
+    if (!settings.discord_wins_enabled) return res.status(200).json({ posted: false, reason: "discord_off" });
+    const first = firstNameOf(me.name);
+    const posted = await postWins(discordLine({ kind: "checkoff", first_name: first, detail: { task: String(task.title).slice(0, 120) } }));
+
+    // Every to-do due by today done: one more line, once a day.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: settings.time_zone || "America/Chicago" }).format(new Date());
+    const { count: left } = await admin
+      .from("cc_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("assignee_email", me.email)
+      .eq("status", "open")
+      .lte("due_on", today);
+    let cleared = false;
+    if (task.assignee_email === me.email && !left) cleared = (await postWins(listClearedLine(first))).sent;
+    return res.status(200).json({ posted: posted.sent, cleared });
   }
 
   return res.status(404).json({ error: "not_found" });

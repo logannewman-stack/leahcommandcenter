@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Calendar, CheckCircle2, Clock, Gift, Heart, HeartHandshake, MailWarning, MinusCircle, Package, PenLine, Plug,
+  Calendar, CheckCircle2, Clock, Gift, Heart, HeartHandshake, ListChecks, MailWarning, MinusCircle, Package, PenLine, Plug,
   Send, ShoppingBag, Sparkles, TrendingUp, UserPlus, Users
 } from "lucide-react";
 import { NAV_ICONS } from "@/components/Shell";
+import { TeamTodayCard, YourTodosCard } from "@/components/todos/TodoCards";
 import Sparkline from "@/components/Sparkline";
 import { Badge, Card, CountPill, EmptyLine, IconTile, LinkRow, Notice, Page, RefreshButton, Segmented, Skeleton, StatCard } from "@/components/ui";
 import { callAdmin } from "@/lib/api";
@@ -14,6 +15,7 @@ import { updatedLabel, useLive, useTick, useWide } from "@/lib/live";
 import { NAV_ITEMS, badgeCount } from "@/lib/nav";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
+import { useTasks } from "@/lib/tasksStore";
 import { PERIODS, PERIOD_COPY, intervals, isToday, series, startOfDay } from "@/lib/trends";
 import { STEPS, whoOf } from "@/lib/words";
 
@@ -40,6 +42,7 @@ function missingFrom(health) {
 export default function Dashboard() {
   const { counts, subscribe } = useLive();
   const { me } = useSession();
+  const { lead, overdue } = useTasks();
   const wide = useWide();
   useTick(30_000);
   const [score, setScore] = useState(null);
@@ -112,6 +115,7 @@ export default function Dashboard() {
   const waitingCopy = STEPS.filter((step) => !step.enabled).length;
 
   const needs = [
+    { key: "overdue", count: lead ? overdue : 0, icon: ListChecks, tone: "amber", to: "/todos", title: "To-dos past their day", sub: "Across the team · a nudge can help" },
     { key: "cancels", count: counts.cancels, icon: HeartHandshake, tone: "rust", to: "/pulse?view=needs", title: "Cancellations to reach out to", sub: "A personal note from someone on the team" },
     { key: "trials", count: counts.trialsEnding, icon: Clock, tone: "amber", to: "/pulse?view=needs", title: "Trials ending in 48 hours", sub: "A good moment for someone to reach out" },
     { key: "failed", count: counts.journeyFailed, icon: MailWarning, tone: "rust", to: "/journey?status=failed", title: "Welcome messages that didn't send", sub: "Last 14 days · the reason is on the Journey" },
@@ -180,6 +184,14 @@ export default function Dashboard() {
             <div className="cc-hero-stat">
               <div className={`cc-hero-value ${needYou > 0 ? "is-alert" : ""}`}>{counts.known ? needYou : "–"}</div>
               <div className="cc-hero-label">Members to reach</div>
+            </div>
+          </div>
+
+          {/* The to-dos: everyone's own list, and Leah's view of the team's day */}
+          <div className="cc-grid-2">
+            {lead ? <TeamTodayCard /> : null}
+            <div style={lead ? undefined : { gridColumn: "1 / -1" }}>
+              <YourTodosCard />
             </div>
           </div>
 
@@ -358,7 +370,7 @@ export default function Dashboard() {
   );
 }
 
-const SCREEN_TONES = { pulse: "rust", journey: "navy", team: "plum", setup: "ink" };
+const SCREEN_TONES = { todos: "green", pulse: "rust", journey: "navy", team: "plum", setup: "ink" };
 
 /** What happened, in a few words, for the Today list. */
 function todayLine(event) {

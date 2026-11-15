@@ -10,7 +10,7 @@ test("the nav is grouped as the DOD Command Center's: Overview, Members, Team", 
   );
   assert.deepEqual(
     NAV_ITEMS.map((i) => i.path),
-    ["/", "/pulse", "/journey", "/team", "/setup"]
+    ["/", "/todos", "/pulse", "/journey", "/team", "/setup"]
   );
   assert.equal(new Set(NAV_ITEMS.map((i) => i.key)).size, NAV_ITEMS.length, "keys are unique");
 });
@@ -28,6 +28,12 @@ test("a path lights its item, with or without a trailing slash; anything else is
   assert.equal(activeItem("/").key, "dashboard");
   assert.equal(activeItem("/nowhere").key, "dashboard");
   assert.equal(documentTitle(activeItem("/setup")), "Setup · Command Center");
+});
+
+test("To-dos is second, with a badge for what is due", () => {
+  const todos = NAV_ITEMS[1];
+  assert.equal(todos.key, "todos");
+  assert.equal(badgeCount(todos, { myTodos: 4, needsYou: 2 }), 4);
 });
 
 test("a badge reads its own count and nothing else", () => {

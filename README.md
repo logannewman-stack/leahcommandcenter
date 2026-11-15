@@ -24,10 +24,23 @@ sheet, and a dark mode toggle) in the Practice's ivory, navy and gold.
 | **Welcome Journey** — the welcome email and text, Day 1 in app, Day 2 merch, the upgrade thank-you, the merch thank-you; Day 4, Day 6 and "quiet for 10 days" planned and waiting on Leah's copy | `api/_lib/journey.js`, `api/_lib/words.js`, `api/cron.js` |
 | **Gift tracking** — any Stripe Payment Link whose metadata says `kind=gift` counts, on the board and in Discord | `api/_lib/pulse.js` |
 | **Scoreboard** — the top row: trials, trial to paid, paying members and recurring revenue, merch, app use, gifts | `supabase/migrations`, `cc_scoreboard()` |
-| **Needs you** — cancels and trials ending as quiet cards, with Handled and, for an admin, the member's address for a personal note | `src/components/PulseCard.jsx`, `api/admin.js` |
+| **Needs you** — cancels and trials ending as quiet cards, with Handled and, for an admin, the member's address for a personal note | `src/components/PulseRow.jsx`, `api/admin.js` |
+| **Team to-dos** — Leah gives out to-dos and sees everyone's list with a ring per person and each check-off live; everyone else sees only their own and checks them off. Repeating to-dos, the month's burst on a check, a bigger one for a cleared list, Undo, and a line in #wins | `src/pages/Todos.jsx`, `src/lib/tasksStore.jsx`, `supabase/migrations/20261116000000_team_todos.sql` |
 
-Phase 2 (Team Board, Discord slash commands), Phase 3 (referrals, bonus pool) and Phase 4 (Keep the
-Dream Alive) build on these tables.
+## Team to-dos
+
+- **Leah** (whoever has `assigns_tasks`) sees the whole team: a ring per person that fills as their day
+  gets done, a quick add (type, pick who and when, press Return), every list, and a "Done lately" column
+  that fills the second someone checks one off, with a note at the bottom of her screen.
+- **Everyone else** sees "Your to-dos": their ring for today and only the to-dos given to them. They tap
+  the circle to check one off, or open it and tap Mark done. Undo is right there.
+- **Repeating to-dos** (every day, weekdays, Monday Wednesday Friday, weekly, monthly) make the next one
+  when they are checked off.
+- **Who sees what is the database's rule**, not the screen's: row-level security on `cc_tasks` gives Leah
+  every row and everyone else their own, and `cc_set_task_done()` is the one thing a teammate can do.
+
+Phase 2's slash commands, Phase 3 (referrals, bonus pool) and Phase 4 (Keep the Dream Alive) build on
+these tables.
 
 ## Set it up
 
@@ -37,8 +50,12 @@ In the Supabase dashboard of the **Practice app's project**, open the SQL editor
 `supabase/migrations/20261115000000_command_center.sql`. It adds the `cc_` tables, their row-level
 security, the Realtime publication for the board, and `cc_scoreboard()`. Safe to run more than once.
 
+Then run `supabase/migrations/20261116000000_team_todos.sql`, the team to-dos.
+
 Then open `supabase/seed-team.sql`, put each person's sign-in email in place of the placeholders, and
-run it. Whoever's email is on `cc_team` can open the Command Center; `is_admin` may change settings and
+run it. Leah's row has `assigns_tasks` on: she gives out the to-dos and sees all of them. An admin can
+give that to someone else on Roles. `supabase/seed-todos.sql` (optional) starts the board with the
+brief's recurring tasks. Whoever's email is on `cc_team` can open the Command Center; `is_admin` may change settings and
 ask for a member's address.
 
 ### 2. Environment variables

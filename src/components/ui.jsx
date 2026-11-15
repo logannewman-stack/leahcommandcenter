@@ -1,6 +1,9 @@
 import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { ChevronRight, RefreshCw, X } from "lucide-react";
+import { useWide } from "@/lib/live";
 
 /*
  * The Command Center's kit: the Detail on Demand Command Center's pieces
@@ -267,42 +270,127 @@ export function StatCard({ icon, tone, title, value, caption, rows = [], known =
   );
 }
 
-/** A bottom sheet with a title, a body and a pinned footer: the phone menu. */
-export function Sheet({ open, onClose, title, footer, children }) {
+/**
+ * A sheet: on a phone it slides up from the bottom and follows a finger
+ * down to close (from its grabber or title); beside the sidebar it is a
+ * centered dialog. A title, a body that scrolls and a pinned footer. Escape
+ * closes it, the page under it does not scroll, and focus comes back to
+ * whatever opened it.
+ */
+export function Sheet({ open, onClose, title, footer, children, label }) {
   const titleId = useId();
   const panel = useRef(null);
+  const wide = useWide();
+  const drag = useDragControls();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
     if (!open) return undefined;
     const before = document.activeElement;
-    const key = (event) => event.key === "Escape" && onClose?.();
+    const key = (event) => event.key === "Escape" && closeRef.current?.();
     document.addEventListener("keydown", key);
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
-    panel.current?.focus();
+    const focus = setTimeout(() => {
+      if (!panel.current?.contains(document.activeElement)) panel.current?.focus({ preventScroll: true });
+    }, 30);
     return () => {
+      clearTimeout(focus);
       document.removeEventListener("keydown", key);
       document.body.style.overflow = overflow;
-      before?.focus?.();
+      before?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose]);
-  if (!open) return null;
+  }, [open]);
+
+  const motionFor = wide
+    ? { initial: { opacity: 0, scale: 0.96, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.97, y: 6 }, transition: { type: "spring", stiffness: 520, damping: 38 } }
+    : { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%" }, transition: { type: "spring", stiffness: 380, damping: 36 } };
+
+  return createPortal(
+    <AnimatePresence>
+      {open ? (
+        <React.Fragment key="sheet">
+          <motion.div className="cc-scrim" onClick={onClose} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+          <motion.div
+            className={`cc-sheet ${wide ? "is-dialog" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : label}
+            tabIndex={-1}
+            ref={panel}
+            {...motionFor}
+            drag={wide ? false : "y"}
+            dragControls={drag}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.7 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 110 || info.velocity.y > 650) onClose?.();
+            }}
+          >
+            <div className="cc-sheet-drag" onPointerDown={(event) => !wide && drag.start(event)}>
+              <div className="cc-sheet-grabber" aria-hidden="true" />
+              <div className="cc-sheet-head">
+                {title ? (
+                  <h2 id={titleId} className="t-headline cc-label cc-clip">
+                    {title}
+                  </h2>
+                ) : (
+                  <span />
+                )}
+                <button type="button" className="cc-icon-press" onClick={onClose} aria-label="Close">
+                  <X size={20} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <div className="cc-sheet-body">{children}</div>
+            {footer ? <div className="cc-sheet-foot">{footer}</div> : null}
+          </motion.div>
+        </React.Fragment>
+      ) : null}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+/**
+ * A progress ring, as the Watch draws it: a track and an arc that sweeps to
+ * `value` (0 to 1), in a tone, with anything in its middle.
+ */
+export function Ring({ value = 0, size = 44, stroke = 4, tone = "navy", children, label }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(1, Number(value) || 0));
   return (
-    <>
-      <div className="cc-scrim" onClick={onClose} aria-hidden="true" />
-      <div className="cc-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={panel}>
-        <div className="cc-sheet-grabber" aria-hidden="true" />
-        <div className="cc-sheet-head">
-          <h2 id={titleId} className="t-headline cc-label">
-            {title}
-          </h2>
-          <button type="button" className="cc-icon-press" onClick={onClose} aria-label="Close">
-            <X size={20} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        </div>
-        <div className="cc-sheet-body">{children}</div>
-        {footer ? <div className="cc-sheet-foot">{footer}</div> : null}
-      </div>
-    </>
+    <span className={`cc-ring tone-${tone}`} style={{ width: size, height: size }} role={label ? "img" : undefined} aria-label={label}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="cc-ring-track" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          className="cc-ring-arc"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - clamped)}
+        />
+      </svg>
+      {children ? <span className="cc-ring-center">{children}</span> : null}
+    </span>
+  );
+}
+
+/** A thin bar that fills to `value` (0 to 1). */
+export function Bar({ value = 0, tone = "navy" }) {
+  const clamped = Math.max(0, Math.min(1, Number(value) || 0));
+  return (
+    <span className={`cc-bar tone-${tone}`} aria-hidden="true">
+      <span style={{ width: `${clamped * 100}%` }} />
+    </span>
   );
 }
 

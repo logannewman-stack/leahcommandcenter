@@ -1,7 +1,9 @@
-import React from "react";
-import { Crown, Users } from "lucide-react";
-import { Badge, Card, EmptyState, Monogram, Page } from "@/components/ui";
+import React, { useState } from "react";
+import { Crown, ListChecks, Users } from "lucide-react";
+import { Badge, Card, EmptyState, Monogram, Page, Switch } from "@/components/ui";
 import { useSession } from "@/lib/session";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/lib/toast";
 
 const TONES = ["navy", "plum", "green", "amber", "gold", "rust"];
 
@@ -11,8 +13,22 @@ const TONES = ["navy", "plum", "green", "amber", "gold", "rust"];
  * adds the tasks, streaks and shout outs on top of these lanes.
  */
 export default function Team() {
-  const { team, me } = useSession();
+  const { team, me, refresh } = useSession();
+  const { toast } = useToast();
+  const [busy, setBusy] = useState("");
   const people = team.filter((person) => person.active !== false);
+
+  // An admin decides who gives out the to-dos (and so sees all of them).
+  const setLead = async (person, on) => {
+    setBusy(person.email);
+    const { error } = await supabase.from("cc_team").update({ assigns_tasks: on }).eq("email", person.email);
+    setBusy("");
+    if (error) toast({ title: "That didn't save", body: error.message, tone: "rust" });
+    else {
+      toast({ title: on ? `${person.name} gives out to-dos` : `${person.name} sees only their own to-dos`, icon: ListChecks, tone: "navy" });
+      refresh();
+    }
+  };
   return (
     <Page title="Roles" subtitle={`${people.length} ${people.length === 1 ? "person" : "people"} · who owns what`}>
       {people.length ? (
@@ -28,11 +44,18 @@ export default function Team() {
                   </p>
                   <p className="t-foot cc-tertiary cc-clip">{person.lane || "No lane yet"}</p>
                 </div>
-                {person.is_admin ? (
-                  <Badge tone="gold" title="Can change settings and see a member's address">
-                    Admin
-                  </Badge>
-                ) : null}
+                <span className="flex flex-col items-end gap-1">
+                  {person.is_admin ? (
+                    <Badge tone="gold" title="Can change settings and see a member's address">
+                      Admin
+                    </Badge>
+                  ) : null}
+                  {person.assigns_tasks ? (
+                    <Badge tone="green" title="Gives out the to-dos and sees all of them">
+                      To-dos
+                    </Badge>
+                  ) : null}
+                </span>
               </div>
               {(person.responsibilities || []).length ? (
                 <ul className="cc-rows" style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -48,6 +71,19 @@ export default function Team() {
                   No responsibilities listed yet.
                 </p>
               )}
+              {me?.is_admin ? (
+                <div className="cc-row" style={{ minHeight: 48, marginTop: 4, boxShadow: "inset 0 0.5px 0 var(--cc-hair)" }}>
+                  <span className="cc-row-main">
+                    <span className="t-foot t-strong cc-label" style={{ display: "block" }}>
+                      Gives out to-dos
+                    </span>
+                    <span className="t-cap1 cc-tertiary" style={{ display: "block" }}>
+                      Sees everyone's list
+                    </span>
+                  </span>
+                  <Switch checked={Boolean(person.assigns_tasks)} disabled={busy === person.email} onChange={(on) => setLead(person, on)} label={`${person.name} gives out to-dos`} />
+                </div>
+              ) : null}
             </Card>
           ))}
         </div>
@@ -57,7 +93,7 @@ export default function Team() {
         </Card>
       )}
       <p className="t-cap1 cc-tertiary flex items-center gap-2" style={{ padding: "0 4px" }}>
-        <Crown size={13} aria-hidden="true" /> Lanes are edited in Supabase for now. The Team Board brings tasks, streaks and shout outs in Phase 2.
+        <Crown size={13} aria-hidden="true" /> Lanes are edited in Supabase for now. Whoever gives out to-dos sees every list; everyone else sees their own.
       </p>
     </Page>
   );

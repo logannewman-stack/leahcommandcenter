@@ -78,7 +78,9 @@ export function LiveProvider({ children }) {
   }, []);
 
   const endBurst = useCallback(() => setBurst(null), []);
-  const value = useMemo(() => ({ live, counts, refreshCounts, subscribe }), [live, counts, refreshCounts, subscribe]);
+  /** The month's burst on demand: a checked to-do, a cleared list. */
+  const celebrate = useCallback((bigger = false) => setBurst({ id: `c-${Date.now()}`, bigger }), []);
+  const value = useMemo(() => ({ live, counts, refreshCounts, subscribe, celebrate }), [live, counts, refreshCounts, subscribe, celebrate]);
   return (
     <LiveContext.Provider value={value}>
       {children}
