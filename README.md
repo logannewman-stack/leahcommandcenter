@@ -58,8 +58,8 @@ server-only and must never get a `VITE_` prefix.
 ### 3. Deploy on Vercel
 
 Import the repo in Vercel. `vercel.json` sets the build, the SPA rewrite, the security headers and the
-hourly job (`/api/cron`, `0 * * * *`; the Hobby plan runs crons once a day, which still works, just
-slower). Add the Command Center's address to the Practice project's Authentication → URL Configuration
+hourly job (`/api/cron`, `0 * * * *`). On Vercel's Hobby plan a cron may run only once a day: change the
+schedule to `0 13 * * *` there, and the job catches up on everything due since its last run. Add the Command Center's address to the Practice project's Authentication → URL Configuration
 → Redirect URLs, so the email link and Google sign-in come back here.
 
 ### 4. Stripe's second endpoint
