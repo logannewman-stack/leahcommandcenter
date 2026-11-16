@@ -21,7 +21,7 @@ sheet, and a dark mode toggle) in the Practice's ivory, navy and gold.
 | --- | --- |
 | **Live Pulse** — joins, upgrades, merch orders, gifts, trials ending, cancels, the instant they happen, with the month's seasonal burst and a soft chime for the loud ones | Home and Live Pulse screens; `api/stripe.js`, `src/lib/usePulse.js` |
 | **Discord #wins** — one line per loud moment, first name and city only, with the running count | `api/_lib/discord.js`, `api/_lib/words.js` |
-| **Welcome Journey** — the welcome email and text, Day 1 in app, Day 2 merch, the upgrade thank-you, the merch thank-you; Day 4, Day 6 and "quiet for 10 days" planned and waiting on Leah's copy | `api/_lib/journey.js`, `api/_lib/words.js`, `api/cron.js` |
+| **Welcome Journey** — Leah's seven emails from "The Practice Email Automation Guide": Day 0 welcome (sent the moment someone joins), Day 1 her story and the Practice Coach, Day 3 the Lab, Day 5 the merch, 24 hours before the trial ends (only to someone still on it), "You're officially in" the moment someone pays, and a check-in after a quiet week (once per quiet stretch); plus the Day 1 in-app nudge and the merch order thank-you | `api/_lib/journey.js`, `api/_lib/words.js`, `api/cron.js` |
 | **Gift tracking** — any Stripe Payment Link whose metadata says `kind=gift` counts, on the board and in Discord | `api/_lib/pulse.js` |
 | **Scoreboard** — the top row: trials, trial to paid, paying members and recurring revenue, merch, app use, gifts | `supabase/migrations`, `cc_scoreboard()` |
 | **Needs you** — cancels and trials ending as quiet cards, with Handled and, for an admin, the member's address for a personal note | `src/components/PulseRow.jsx`, `api/admin.js` |
@@ -79,6 +79,7 @@ server-only and must never get a `VITE_` prefix.
 | `STRIPE_SECRET_KEY` | The Practice's Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | The signing secret of **this app's** endpoint (step 4) |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend, and the from address, on the domain that sends the Practice's mail |
+| `MAIL_REPLY_TO` | Optional: where members' replies to Leah's emails go ("Reply and tell me"); without it, to `MAIL_FROM` |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | Texts, once the carrier registration is through (optional) |
 | `DISCORD_WINS_WEBHOOK_URL` | A webhook made on the #wins channel |
 | `CRON_SECRET` | Any long random string; Vercel sends it to the hourly job |

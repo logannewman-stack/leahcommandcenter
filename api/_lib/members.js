@@ -78,8 +78,12 @@ export async function trialsEndingWithin(db, hours, now = new Date()) {
 
 /**
  * Members who have not practised in `days` days: every open membership, less
- * everyone with a practice day in the window. A count of days is all this
- * reads, never what was practised.
+ * everyone with a practice day in the window, each with the last day they
+ * did practise (null for never). A count of days is all this reads, never
+ * what was practised. The last day is what makes the check-in go once per
+ * quiet stretch: it changes only when they come back.
+ *
+ * @returns {Promise<{ userId: string, lastDay: string|null }[]>}
  */
 export async function quietMembers(db, days, now = new Date()) {
   const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
@@ -93,6 +97,13 @@ export async function quietMembers(db, days, now = new Date()) {
     const { data } = await db.from("practice_days").select("user_id").in("user_id", slice).gte("day", sinceDay).limit(5000);
     for (const row of data || []) active.add(row.user_id);
   }
-  // Somebody who joined inside the window has not been quiet for ten days yet.
-  return open.filter((row) => !active.has(row.user_id) && new Date(row.updated_at).getTime() < since.getTime()).map((row) => row.user_id);
+  // Somebody who joined inside the window has not been quiet that long yet.
+  const quiet = open.filter((row) => !active.has(row.user_id) && new Date(row.updated_at).getTime() < since.getTime()).map((row) => row.user_id);
+  const last = new Map();
+  for (let i = 0; i < quiet.length; i += 200) {
+    const slice = quiet.slice(i, i + 200);
+    const { data } = await db.from("practice_days").select("user_id, day").in("user_id", slice).order("day", { ascending: false }).limit(5000);
+    for (const row of data || []) if (!last.has(row.user_id)) last.set(row.user_id, row.day);
+  }
+  return quiet.map((userId) => ({ userId, lastDay: last.get(userId) || null }));
 }

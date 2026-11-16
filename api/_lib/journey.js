@@ -21,11 +21,11 @@ const GONE = new Set(["canceled", "incomplete_expired", "unpaid"]);
  * member, step, channel and ref) are left as they are.
  *
  * @param {any} db
- * @param {{ userId: string, firstName: string, on: "join"|"upgrade"|"merch"|"quiet", at?: Date, ref?: string }} input
+ * @param {{ userId: string, firstName: string, on: "join"|"upgrade"|"merch"|"quiet", at?: Date, ref?: string, trialEnd?: string|null }} input
  * @returns {Promise<number>} how many rows were planned
  */
-export async function planJourney(db, { userId, firstName, on, at = new Date(), ref = "" }) {
-  const rows = planFor(on, at).map((step) => ({ user_id: userId, first_name: firstName || "", ref, ...step }));
+export async function planJourney(db, { userId, firstName, on, at = new Date(), ref = "", trialEnd = null }) {
+  const rows = planFor(on, at, { trialEnd }).map((step) => ({ user_id: userId, first_name: firstName || "", ref, ...step }));
   if (!rows.length) return 0;
   const { error } = await db.from("cc_journey").upsert(rows, { onConflict: "user_id,step,channel,ref", ignoreDuplicates: true });
   if (error) throw new Error(`cc_journey: ${error.message}`);
@@ -63,8 +63,11 @@ export async function sendStep(db, row, { settings, base, deps = {} }) {
   if (!member) return { status: "skipped", note: "no_account" };
   // A later step of the series, to somebody who gave the trial up: nothing.
   if (step.on === "join" && step.after > 0 && GONE.has(member.status)) return { status: "skipped", note: "no_longer_member" };
-  // "Your trial ends tomorrow", to somebody already paying: nothing.
-  if (step.id === "day6_trial" && member.status === "active") return { status: "skipped", note: "already_a_member" };
+  // "Your trial wraps up tomorrow" goes only to somebody still on the trial:
+  // not to someone who has already become a member, nor to someone who joined without one.
+  if (step.id === "day6_trial" && member.status !== "trialing") {
+    return { status: "skipped", note: member.status === "active" || member.status === "past_due" ? "already_a_member" : "not_on_trial" };
+  }
 
   const items = step.id === "merch_order" ? await itemsFor(db, row.ref) : [];
   const message = messageFor(step.id, { first: member.firstName || row.first_name, base, sender: settings.sender, items });
@@ -74,7 +77,8 @@ export async function sendStep(db, row, { settings, base, deps = {} }) {
   if (row.channel === "email") {
     if (!member.email) return { status: "skipped", note: "no_address" };
     const { text, html } = emailBody({ title: message.title, paragraphs: message.paragraphs, url: message.url, button: message.button, signoff: message.signoff, footer: EMAIL_FOOTER });
-    const result = await email({ to: member.email, subject: message.subject, text, html, fromName, once: row.id });
+    // "Reply and tell me": replies go to the inbox someone reads (MAIL_REPLY_TO), else to the sender.
+    const result = await email({ to: member.email, subject: message.subject, text, html, fromName, replyTo: process.env.MAIL_REPLY_TO || "", once: row.id });
     return result.sent ? { status: "sent", note: "" } : { status: result.skipped ? "skipped" : "failed", note: result.error };
   }
   if (row.channel === "sms") {
@@ -96,12 +100,18 @@ export async function sendStep(db, row, { settings, base, deps = {} }) {
  * Every step that is due, sent, a few at a time, inside the time there is.
  *
  * @param {any} db
- * @param {{ settings: any, base: string, now?: Date, limit?: number, deadlineMs?: number, deps?: any }} context
+ * `userId` sends only that member's due steps: the webhook's way of sending
+ * the welcome and the membership email the moment they are earned, rather
+ * than at the next run of the hourly job.
+ *
+ * @param {{ settings: any, base: string, now?: Date, limit?: number, deadlineMs?: number, deps?: any, userId?: string }} context
  */
-export async function sendDue(db, { settings, base, now = new Date(), limit = 100, deadlineMs = 40_000, deps }) {
+export async function sendDue(db, { settings, base, now = new Date(), limit = 100, deadlineMs = 40_000, deps, userId = "" }) {
   const started = Date.now();
   const totals = { sent: 0, skipped: 0, failed: 0 };
-  const { data: due, error } = await db.from("cc_journey").select("*").eq("status", "due").lte("due_at", now.toISOString()).order("due_at", { ascending: true }).limit(limit);
+  let query = db.from("cc_journey").select("*").eq("status", "due").lte("due_at", now.toISOString());
+  if (userId) query = query.eq("user_id", userId);
+  const { data: due, error } = await query.order("due_at", { ascending: true }).limit(limit);
   if (error) throw new Error(`cc_journey: ${error.message}`);
   for (const row of due || []) {
     if (Date.now() - started > deadlineMs) break;

@@ -68,10 +68,12 @@ test("a signed join is one card, one Discord line and one welcome series; the sa
   const db = database();
   const posted = [];
   const planned = [];
+  const sentNow = [];
   const deps = {
     forCustomer: async (_db, customer, hint) => (customer === "cus_1" && hint ? { userId: hint, firstName: "Sarah" } : null),
     discord: async (line) => (posted.push(line), { sent: true }),
     plan: async (_db, input) => (planned.push(input), 7),
+    send: async (_db, options) => (sentNow.push(options), { sent: 1, skipped: 1, failed: 0 }),
     settings: async () => ({ journey_enabled: true, texting_enabled: false, discord_wins_enabled: true, sender: "Leah" })
   };
   const body = JSON.stringify(event);
@@ -88,6 +90,9 @@ test("a signed join is one card, one Discord line and one welcome series; the sa
   assert.equal(JSON.stringify(db.rows[0]).includes("@"), false, "no address on the card");
   assert.match(posted[0], /^🎉 Welcome, Sarah! 1 new member today\.$/);
   assert.equal(planned[0].on, "join");
+  assert.equal(planned[0].trialEnd, new Date(1_800_604_800 * 1000).toISOString(), "the trial reminder is timed from Stripe's trial end");
+  assert.equal(sentNow.length, 1, "the welcome goes now, not at the next hourly run");
+  assert.equal(sentNow[0].userId, "11111111-1111-1111-1111-111111111111");
 
   const again = reply();
   await receive(request(body), again.res, db, deps);
@@ -127,6 +132,7 @@ test("without the signing secret, the event is read back from Stripe by its id",
     forCustomer: async () => ({ userId: "11111111-1111-1111-1111-111111111111", firstName: "Sarah" }),
     discord: async () => ({ sent: true }),
     plan: async () => 7,
+    send: async () => ({ sent: 0, skipped: 0, failed: 0 }),
     settings: async () => ({ journey_enabled: true, discord_wins_enabled: false, sender: "Leah" })
   };
   await receive({ method: "POST", headers: {}, body: { id: "evt_1" } }, res, db, deps);

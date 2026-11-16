@@ -23,10 +23,10 @@ test("the welcome email goes to the member's address, from Leah, once per row", 
   assert.deepEqual(outcome, { status: "sent", note: "" });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, "sarah@example.com");
-  assert.equal(sent[0].subject, "Welcome to The Practice");
+  assert.equal(sent[0].subject, "Welcome to The Practice. Your life deserves this. 🤍");
   assert.equal(sent[0].fromName, "Leah from The Practice");
   assert.equal(sent[0].once, "row-1");
-  assert.match(sent[0].text, /Hi Sarah,/);
+  assert.match(sent[0].text, /^Hey Sarah!/);
   assert.match(sent[0].html, /practiceinnerboard\.com\/today/);
 });
 
@@ -43,16 +43,28 @@ test("a text needs the switch on and the member's own opt-in; without either, no
   assert.equal(texts, 1);
 });
 
-test("a step without Leah's copy is skipped and says why; the whole journey can be switched off", async () => {
+test("the trial reminder goes only to someone still on the trial; the whole journey can be switched off", async () => {
   let mails = 0;
   const email = async () => (mails += 1, { sent: true, skipped: false, error: "" });
-  const waiting = await sendStep(db(), row({ step: "day6_trial" }), { settings, base, deps: { member: async () => sarah, email } });
-  assert.deepEqual(waiting, { status: "skipped", note: "waiting_on_leah" });
-  const approved = await sendStep(db(), row({ step: "day6_trial" }), { settings: { ...settings, journey_approved: ["day6_trial"] }, base, deps: { member: async () => ({ ...sarah, status: "trialing" }), email } });
-  assert.equal(approved.status, "sent");
+  const trialing = await sendStep(db(), row({ step: "day6_trial" }), { settings, base, deps: { member: async () => ({ ...sarah, status: "trialing" }), email } });
+  assert.equal(trialing.status, "sent");
+  const paid = await sendStep(db(), row({ step: "day6_trial" }), { settings, base, deps: { member: async () => ({ ...sarah, status: "active" }), email } });
+  assert.deepEqual(paid, { status: "skipped", note: "already_a_member" });
+  const noTrial = await sendStep(db(), row({ step: "day6_trial" }), { settings, base, deps: { member: async () => ({ ...sarah, status: "none" }), email } });
+  assert.deepEqual(noTrial, { status: "skipped", note: "not_on_trial" });
   const off = await sendStep(db(), row(), { settings: { ...settings, journey_enabled: false }, base, deps: { member: async () => sarah, email } });
   assert.deepEqual(off, { status: "skipped", note: "journey_off" });
-  assert.equal(mails, 1, "only the approved one went out");
+  assert.equal(mails, 1, "only the one still on a trial got it");
+});
+
+test("replies to Leah's emails go to the inbox set for them", async () => {
+  const sent = [];
+  process.env.MAIL_REPLY_TO = "leah@example.com";
+  await sendStep(db(), row({ step: "day1_story" }), { settings, base, deps: { member: async () => sarah, email: async (mail) => (sent.push(mail), { sent: true }) } });
+  delete process.env.MAIL_REPLY_TO;
+  assert.equal(sent[0].replyTo, "leah@example.com");
+  assert.equal(sent[0].subject, "Can I tell you why I created The Practice?");
+  assert.match(sent[0].text, /^Hey Sarah!/);
 });
 
 test("a later step to somebody who gave the trial up, or has no account, is nothing", async () => {

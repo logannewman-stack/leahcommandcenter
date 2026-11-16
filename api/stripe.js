@@ -3,7 +3,7 @@ import { lineItemsOf, stripe, stripeConfig, verifySignature } from "./_lib/strip
 import { WEBHOOK_EVENTS, countsFor, pulseFrom, recordPulse } from "./_lib/pulse.js";
 import { memberByEmail, memberForCustomer } from "./_lib/members.js";
 import { postWins } from "./_lib/discord.js";
-import { planJourney } from "./_lib/journey.js";
+import { planJourney, sendDue } from "./_lib/journey.js";
 import { POSTS_TO_DISCORD, discordLine, firstNameOf } from "./_lib/words.js";
 
 /**
@@ -46,7 +46,7 @@ export default function handler(req, res) {
  * @param {any} req
  * @param {any} res
  * @param {any} db  the service-key client, or null
- * @param {{ forCustomer?: typeof memberForCustomer, byEmail?: typeof memberByEmail, lineItems?: typeof lineItemsOf, discord?: typeof postWins, plan?: typeof planJourney, settings?: typeof settingsOf, fetchEvent?: (id: string) => Promise<any> }} [deps]
+ * @param {{ forCustomer?: typeof memberForCustomer, byEmail?: typeof memberByEmail, lineItems?: typeof lineItemsOf, discord?: typeof postWins, plan?: typeof planJourney, send?: typeof sendDue, settings?: typeof settingsOf, fetchEvent?: (id: string) => Promise<any> }} [deps]
  */
 export async function receive(req, res, db, deps = {}) {
   if (req.method !== "POST") {
@@ -123,8 +123,17 @@ export async function receive(req, res, db, deps = {}) {
         firstName: member.firstName,
         on: moment.kind,
         at: new Date(moment.occurred_at),
-        ref: moment.kind === "merch" ? moment.session : ""
+        ref: moment.kind === "merch" ? moment.session : "",
+        trialEnd: moment.kind === "join" ? moment.detail.trial_end || null : null
       });
+      // The welcome and "You're officially in" go now, not at the next hourly run.
+      if (moment.kind !== "merch") {
+        try {
+          said.sent = await (deps.send || sendDue)(db, { settings, base: practiceUrl(), userId: member.userId, deadlineMs: 8000 });
+        } catch (error) {
+          console.warn("stripe webhook, send now:", error?.message);
+        }
+      }
     }
     return res.status(200).json(said);
   } catch (error) {

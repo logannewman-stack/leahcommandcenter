@@ -10,9 +10,10 @@ import { supabase } from "@/lib/supabase";
 import { STEPS, stepIsOn } from "@/lib/words";
 
 const WHEN = (step) => {
-  if (step.on === "upgrade") return "On upgrade";
+  if (step.on === "upgrade") return "On becoming a member";
   if (step.on === "merch") return "On a merch order";
-  if (step.on === "quiet") return "Quiet for 10 days";
+  if (step.on === "quiet") return "After a quiet week";
+  if (step.id === "day6_trial") return "Day before trial ends";
   return step.after === 0 ? "Right after sign up" : `Day ${step.after}`;
 };
 const CHANNEL = { email: "Email", sms: "Text", push: "In app" };
@@ -33,6 +34,7 @@ const FILTERS = [
 const NOTES = {
   waiting_on_copy: "waiting on Leah's copy",
   waiting_on_leah: "waiting on Leah's OK",
+  not_on_trial: "not on a trial",
   texting_off: "texting is off",
   no_opt_in: "no text opt-in",
   no_longer_member: "no longer a member",

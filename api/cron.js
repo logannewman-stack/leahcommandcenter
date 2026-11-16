@@ -14,8 +14,7 @@ import { HOURLY_WINDOW_MS, catchUpSales } from "./_lib/catchup.js";
  * it now.
  *
  *   1. Trials ending within 48 hours: a quiet card on the board, once per trial.
- *   2. Members quiet for 10 days: the "we miss you" step, once a month each,
- *      only once Leah has turned that email on (Journey page).
+ *   2. Members quiet for 7 days: Leah's check-in, once per quiet stretch.
  *   3. The Welcome Journey's due steps, sent.
  *   4. The scoreboard's snapshot from Stripe, and any merch order or gift
  *      from the last few days Stripe never told the board about.
@@ -59,15 +58,15 @@ export default async function handler(req, res) {
     notes.trial_ending = `error: ${error?.message}`;
   }
 
-  if (stepIsOn(stepById("quiet_10"), await settingsOf(admin))) {
+  if (stepIsOn(stepById("quiet_7"), await settingsOf(admin))) {
     try {
-      const quiet = await quietMembers(admin, 10, now);
-      const ref = now.toISOString().slice(0, 7);
+      // A week without practice: the check-in, once per quiet stretch (its ref is the last day they practised).
+      const quiet = await quietMembers(admin, 7, now);
       let planned = 0;
-      for (const userId of quiet.slice(0, 200)) {
+      for (const { userId, lastDay } of quiet.slice(0, 200)) {
         const member = await memberById(admin, userId);
         if (!member) continue;
-        planned += await planJourney(admin, { userId, firstName: member.firstName, on: "quiet", at: now, ref });
+        planned += await planJourney(admin, { userId, firstName: member.firstName, on: "quiet", at: now, ref: `since:${lastDay || "never"}` });
       }
       notes.quiet = planned;
     } catch (error) {

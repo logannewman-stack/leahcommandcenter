@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BANNED_WORDS, STEPS, discordLine, feedLine, firstNameOf, messageFor, planFor, POSTS_TO_DISCORD, whoOf } from "../api/_lib/words.js";
+import { stepById, SCOLDS, BANNED_WORDS, STEPS, discordLine, feedLine, firstNameOf, messageFor, planFor, POSTS_TO_DISCORD, whoOf } from "../api/_lib/words.js";
 import { emailBody } from "../api/_lib/notify.js";
 
 test("a first name is the first word, as a name is written", () => {
@@ -37,25 +37,36 @@ test("Discord posts the loud moments with their running counts, and never a quie
   assert.equal(POSTS_TO_DISCORD.has("join"), true);
 });
 
-test("a join plans the series on its days; an upgrade and an order plan one message each", () => {
+test("a join plans the guide's series: Day 0, 1, 3, 5 and the day before the trial ends", () => {
   const at = new Date("2026-12-01T15:00:00Z");
   const series = planFor("join", at);
-  const days = (step) => series.filter((row) => row.step === step).map((row) => Math.round((new Date(row.due_at) - at) / 86400000));
+  const days = (step, list = series) => list.filter((row) => row.step === step).map((row) => (new Date(row.due_at) - at) / 86400000);
   assert.deepEqual(days("welcome"), [0, 0], "email and text, right away");
   assert.deepEqual(days("day1_rep"), [1]);
-  assert.deepEqual(days("day2_merch"), [2]);
-  assert.deepEqual(days("day4_lab"), [4]);
-  assert.deepEqual(days("day6_trial"), [6, 6]);
+  assert.deepEqual(days("day1_story"), [1]);
+  assert.deepEqual(days("day3_lab"), [3]);
+  assert.deepEqual(days("day5_merch"), [5]);
+  assert.deepEqual(days("day6_trial"), [6, 6], "without Stripe's trial end, day 6");
+  // With Stripe's trial end: exactly 24 hours before it.
+  const timed = planFor("join", at, { trialEnd: "2026-12-08T09:30:00Z" });
+  assert.equal(timed.find((row) => row.step === "day6_trial").due_at, "2026-12-07T09:30:00.000Z");
   assert.equal(series.some((row) => row.step === "upgrade"), false);
   assert.deepEqual(planFor("upgrade", at).map((row) => row.step), ["upgrade"]);
   assert.deepEqual(planFor("merch", at).map((row) => row.step), ["merch_order"]);
-  assert.deepEqual(planFor("quiet", at).map((row) => row.step), ["quiet_10"]);
+  assert.deepEqual(planFor("quiet", at).map((row) => row.step), ["quiet_7"]);
   assert.deepEqual(planFor("nothing", at), []);
 });
 
-test("every step has a message; the ones Leah wrote are on, the placeholders are off", () => {
+test("a step planned under its old name still sends, as the step it became", () => {
+  assert.equal(stepById("day2_merch").id, "day5_merch");
+  assert.equal(stepById("day4_lab").id, "day3_lab");
+  assert.equal(stepById("quiet_10").id, "quiet_7");
+  assert.equal(messageFor("day4_lab", { first: "Sarah", base: "https://x.y" }).url, "https://x.y/lab");
+});
+
+test("every step has a message, and every one is Leah's own copy, so every one sends", () => {
   const on = STEPS.filter((step) => step.enabled).map((step) => step.id);
-  assert.deepEqual(on, ["welcome", "day1_rep", "day2_merch", "upgrade", "merch_order"]);
+  assert.deepEqual(on, ["welcome", "day1_rep", "day1_story", "day3_lab", "day5_merch", "day6_trial", "upgrade", "merch_order", "quiet_7"]);
   for (const step of STEPS) {
     const message = messageFor(step.id, { first: "Sarah", base: "https://www.practiceinnerboard.com/" });
     assert.ok(message, step.id);
@@ -68,20 +79,35 @@ test("every step has a message; the ones Leah wrote are on, the placeholders are
   assert.equal(messageFor("nope", { first: "x", base: "" }), null);
 });
 
-test("Leah's words, as the appendix has them, and the sender she chose", () => {
-  const welcome = messageFor("welcome", { first: "Sarah", base: "https://www.practiceinnerboard.com" });
-  assert.equal(welcome.subject, "Welcome to The Practice");
-  assert.equal(welcome.title, "Hi Sarah,");
-  assert.match(welcome.paragraphs[1], /borrowed belief/);
-  assert.match(welcome.signoff, /With love,\nLeah/);
+test("Leah's words, as the Email Automation Guide has them, and the sender she chose", () => {
+  const base = "https://www.practiceinnerboard.com";
+  const welcome = messageFor("welcome", { first: "Sarah", base });
+  assert.equal(welcome.subject, "Welcome to The Practice. Your life deserves this. 🤍");
+  assert.equal(welcome.title, "Hey Sarah!");
+  assert.equal(welcome.paragraphs[3], "You're already successful.");
+  assert.equal(welcome.paragraphs.at(-1), "You get one life. Let's get good at living it.");
+  assert.equal(welcome.button, "Open The Practice");
+  assert.equal(welcome.url, `${base}/today`);
+  assert.equal(welcome.signoff, "With love,\nLeah 🤍\nFounder, The Practice by InnerBoard");
   assert.match(welcome.sms, /^Hi Sarah, it's Leah!/);
   assert.match(welcome.sms, /Reply STOP to opt out\.$/);
+  assert.equal(messageFor("welcome", { first: "", base }).title, "Hey there!", "a friendly fallback with no name");
+
+  const subjects = Object.fromEntries(["day1_story", "day3_lab", "day5_merch", "day6_trial", "upgrade", "quiet_7"].map((id) => [id, messageFor(id, { first: "Sarah", base }).subject]));
+  assert.deepEqual(subjects, {
+    day1_story: "Can I tell you why I created The Practice?",
+    day3_lab: "Have you discovered the Lab yet? You’re going to love this. 🤍",
+    day5_merch: "It’s more than merch. It’s a movement. 🤍",
+    day6_trial: "Your life is worth showing up for. 🤍",
+    upgrade: "You chose your life. Let’s celebrate that! 🤍",
+    quiet_7: "A little reminder. You matter, too. 🤍"
+  });
+  const links = Object.fromEntries(["day1_story", "day3_lab", "day5_merch", "day6_trial", "upgrade", "quiet_7"].map((id) => [id, messageFor(id, { first: "Sarah", base }).url.slice(base.length)]));
+  assert.deepEqual(links, { day1_story: "/coach", day3_lab: "/lab", day5_merch: "/club", day6_trial: "/profile", upgrade: "/today", quiet_7: "/today" });
+  assert.equal(messageFor("upgrade", { first: "Sarah", base }).paragraphs[0], "YOU'RE OFFICIALLY IN! 🎉🤍");
 
   const practice = messageFor("upgrade", { first: "Sarah", base: "https://x.y", sender: "The Practice" });
-  assert.match(practice.signoff, /The Practice$/);
-  assert.equal(practice.paragraphs.length, 1, "no referral line until the program exists");
-  const withLink = messageFor("upgrade", { first: "Sarah", base: "https://x.y", referralLink: "https://x.y/r/abc" });
-  assert.match(withLink.paragraphs[1], /https:\/\/x\.y\/r\/abc/);
+  assert.equal(practice.signoff, "With love,\nThe Practice by InnerBoard");
 
   const order = messageFor("merch_order", { first: "Sarah", base: "https://x.y", items: ["Cap", "Tote"] });
   assert.equal(order.title, "Thank you for your order, Sarah!");
@@ -94,7 +120,11 @@ test("nothing a member reads carries a banned word or a scold", () => {
     const message = messageFor(step.id, { first: "Sarah", base: "https://x.y", items: ["Cap"] });
     const all = [message.subject, message.title, ...message.paragraphs, message.signoff, message.sms || "", message.push?.body || ""].join(" ").toLowerCase();
     for (const word of BANNED_WORDS) assert.equal(all.includes(word), false, `${step.id} says "${word}"`);
+    for (const scold of SCOLDS) assert.doesNotMatch(all, scold, `${step.id} scolds`);
   }
+  // Leah's invitation is not a scold; a counted gap would be.
+  assert.equal(SCOLDS.some((s) => s.test("because if you haven't, you're in for something pretty special")), false);
+  assert.equal(SCOLDS.some((s) => s.test("you haven't practiced in 9 days")), true);
 });
 
 test("an email is the title, the paragraphs, one button, the sign-off and the footer, in text and html", () => {
@@ -108,8 +138,10 @@ test("an email is the title, the paragraphs, one button, the sign-off and the fo
 test("a draft sends only once an admin turns it on", async () => {
   const { stepIsOn, stepById } = await import("../src/lib/words.js");
   assert.equal(stepIsOn(stepById("welcome"), {}), true);
-  assert.equal(stepIsOn(stepById("day6_trial"), {}), false);
-  assert.equal(stepIsOn(stepById("day6_trial"), { journey_approved: ["day4_lab"] }), false);
-  assert.equal(stepIsOn(stepById("day6_trial"), { journey_approved: ["day6_trial"] }), true);
+  const draft = { id: "day3_lab", draft: true, enabled: false };
+  assert.equal(stepIsOn(draft, {}), false);
+  assert.equal(stepIsOn(draft, { journey_approved: ["day6_trial"] }), false);
+  assert.equal(stepIsOn(draft, { journey_approved: ["day3_lab"] }), true);
+  assert.equal(stepIsOn(draft, { journey_approved: ["day4_lab"] }), true, "an OK given under its old name still counts");
   assert.equal(stepIsOn(null, { journey_approved: ["day6_trial"] }), false);
 });
